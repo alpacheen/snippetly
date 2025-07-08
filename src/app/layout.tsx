@@ -5,7 +5,7 @@ export const metadata = {
   title: "Snippetly - Your AI-powered Snippet Brain",
   description:
     "Discover, save and share reusable code snippets. Like Spotify but for devs.",
-  openGraoph: {
+  openGraph: {
     title: "Discover, save and share reusable code snippets.",
   },
 };
