@@ -9,7 +9,7 @@ export default function Home(){
           Discover, save and share reusable code snippets. Like Spotify but for code. 
         </p>{/*digital Swiss Army Knife */}
         <Link href="/snippets"
-        className="inline-block px-6 py-3 bg-blue-600 text-white  rounded-lg hover:bg-blue-700 transition">Browse Snippets</Link>
+        className="text-amber-300 inline-block px-6 py-3 bg-blue-600 rounded-lg hover:bg-blue-700 transition">Browse Snippets</Link>
       </div>
     </section>
   )
