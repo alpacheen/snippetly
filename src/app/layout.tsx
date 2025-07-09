@@ -1,5 +1,6 @@
 import "./globals.css";
 import { ReactNode } from "react";
+import {Toaster} from "sonner";
 
 export const metadata = {
   title: "Snippetly - Your AI-powered Snippet Brain",
@@ -13,6 +14,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <body className="flex flex-col min-h-screen">
+        <Toaster richColors />
         <header className="px-6 py-4 border-b">
           <div className="text-xl font-bold">Snippetly</div>
         </header>

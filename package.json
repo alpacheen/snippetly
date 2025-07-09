@@ -10,10 +10,14 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.50.3",
+    "@vercel/og": "^0.7.2",
     "next": "15.3.5",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-syntax-highlighter": "^15.6.1"
+    "react-rating": "^2.0.5",
+    "react-rating-stars-component": "^2.2.0",
+    "react-syntax-highlighter": "^15.6.1",
+    "sonner": "^2.0.6"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

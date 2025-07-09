@@ -1,7 +1,11 @@
 import { supabase } from "@/lib/supabase";
 import { notFound } from "next/navigation";
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
+import { Prism as SyntaxHighlighter}  from "react-syntax-highlighter";
+import  {vscDarkPlus}  from "react-syntax-highlighter/dist/esm/styles/prism";
+import SnippetCodeBlock from "@/app/components/SnippetCodeBlock";
+import CommentsList from "@/app/components/CommentsList";
+import NewCommentForm from "@/app/components/NewCommentForm";
+import StarRating from "@/app/components/StarRating";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +23,16 @@ export async function generateMetadata({ params }: { params: { id: string } }) {
   return {
     title: `${snippet.title} | Snippetly`,
     description: snippet.description,
+    openGraph:{
+        images:[
+            {
+                url: `${process.env.NEXT_PUBLIC_BASE_URL}/api/og?title=${encodeURIComponent(snippet.title)}`,
+                width: 1200,
+                height: 630,
+                alt: snippet.title,
+            }
+        ]
+    }
   };
 }
 
@@ -41,17 +55,18 @@ export default async function SnippetPage({ params }: { params: { id: string } }
       <p className="text-sm text-neutral-500 mb-4">
         Language: {snippet.language}
       </p>
-
-      <SyntaxHighlighter
-        language={snippet.language.toLowerCase()}
-        style={vscDarkPlus}
-      >
-        {snippet.code}
-      </SyntaxHighlighter>
-
+        <SnippetCodeBlock code={snippet.code} language={snippet.language} />
+        <StarRating
+        snippetId={snippet.id}
+            currentRating={snippet.rating}
+            ratingsCount={snippet.ratings_count}
+        />
       <p className="mt-4 text-sm text-neutral-400">
         Tags: {snippet.tags?.join(", ")}
       </p>
+      <CommentsList snippetId={snippet.id} />
+      <NewCommentForm snippetId={snippet.id} />
     </article>
   );
 }
+
