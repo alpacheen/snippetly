@@ -1,3 +1,4 @@
+import FeatureCard from './FeatureCard';
 import {Code, Stars, Search, MessageSquare} from 'lucide-react';
 
 export default function Features() {
