@@ -51,7 +51,7 @@ export default async function SnippetPage({ params }: { params: { id: string } }
   return (
     <article className="prose lg:prose-xl max-w-4xl mx-auto py-8">
       <h1>{snippet.title}</h1>
-      <p className="text-neutral-600">{snippet.description}</p>
+      <p className="text-textSecondary">{snippet.description}</p>
       <p className="text-sm text-neutral-500 mb-4">
         Language: {snippet.language}
       </p>
