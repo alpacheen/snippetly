@@ -1,25 +1,64 @@
 "use client";
 import { TabGroup, Tab } from "@headlessui/react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useState, useEffect } from "react";
+import clsx from "clsx";
 
-function classNames(...classes: string[]) {
-  return classes.filter(Boolean).join(" ");
-}
-const languages = ["JavaScript", "Python", "Java", "C#", "Ruby", "Go", "PHP", "TypeScript", "C++", "Swift", "Kotlin", "Rust", "Dart", "Scala", "Shell", "HTML", "CSS"];
+type TabsFilterProps = {
+  tags: string[];
+};
 
-export default function TabsFilter() {
+const languages = [
+  "JavaScript",
+  "Python",
+  "Java",
+  "C#",
+  "Ruby",
+  "Go",
+  "PHP",
+  "TypeScript",
+  "C++",
+  "Swift",
+  "Kotlin",
+  "Rust",
+  "Dart",
+  "Scala",
+  "Shell",
+  "HTML",
+  "CSS",
+];
+
+export default function TabsFilter({ tags }: TabsFilterProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
   const tabs = ["All", "Language", "Tags"];
   const currentTab = searchParams.get("tab") || "All";
   const currentLanguage = searchParams.get("language") || "";
+  const currentTag = searchParams.get("tag") || "";
+  const currentQuery = searchParams.get("q") || "";
+
+  const [searchQuery, setSearchQuery] = useState(currentQuery);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+        const params = new URLSearchParams(searchParams);
+        if (searchQuery) {
+          params.set("q", searchQuery);
+        } else {
+          params.delete("q");
+        }
+        router.push(`?${params.toString()}`);
+    },400);
+    return () => clearTimeout(timeout);
+  },[searchQuery, searchParams, router]);
 
   const handleTabChange = (tab: string) => {
     const params = new URLSearchParams(searchParams);
     params.set("tab", tab);
-    if (tab !== "Language") {
-      params.delete("language");
+    if (tab !== "Language") params.delete("language");
+    if (tab !== "Tags") {
+      params.delete("tag");
     }
     router.push(`?${params.toString()}`);
   };
@@ -30,8 +69,19 @@ export default function TabsFilter() {
     router.push(`?${params.toString()}`);
   };
 
+  const handleTagChange = (tag: string) => {
+    const params = new URLSearchParams(searchParams);
+    params.set("tag", tag);
+    router.push(`?${params.toString()}`);
+  }
+
   return (
     <div className="mb-6">
+        <input type="text"
+        placeholder="Search snippets..." 
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        className="w-full border px-4 py-2 rounded"/>
       <TabGroup
         selectedIndex={tabs.findIndex((tab) => tab === currentTab)}
         onChange={(index) => handleTabChange(tabs[index])}
@@ -41,11 +91,11 @@ export default function TabsFilter() {
             <Tab
               key={tab}
               className={({ selected }) =>
-                classNames(
+                clsx(
                   "px-4 py-2 font-medium text-sm",
                   selected
-                    ? "border-b-2 border-blue-600 text-blue-600"
-                    : "text-neutral-600 hover:text-blue-600"
+                    ? "border-b-2 border-darkGreen text-amber-300"
+                    : "text-textSecondary hover:text-darkGreen/90"
                 )
               }
             >
@@ -55,19 +105,41 @@ export default function TabsFilter() {
         </Tab.List>
       </TabGroup>
       {currentTab === "Language" && (
-        <div className="flex flex-wrap space-x-2 border-b pb-2">
-            {languages.map((language) => (
-                <button
-                key={language}
-                onClick={() => handleLanguageChange(language)}className={classNames(
-                    "px-3 py-1 rounded",
-                    currentLanguage === language
-                        ? "bg-blue-600 text-white"
-                        : "bg-neutral-100 text-neutral-700 hover:bg-blue-50"
-                )}>{language}</button>
-            ))}
+        <div className="flex flex-wrap gap-2 border-b pb-2">
+          {languages.map((language) => (
+            <button
+              key={language}
+              onClick={() => handleLanguageChange(language)}
+              className={clsx(
+                "px-3 py-1 rounded",
+                currentLanguage === language
+                  ? "bg-lightGreen text-primary"
+                  : "bg-text text-primary hover:bg-blue-50"
+              )}
+            >
+              {language}
+            </button>
+          ))}
         </div>
       )}
+      {currentTab === "Tags" && (
+        <div className="flex flex-wrap gap-2">
+          {tags.map((tag) => (
+            <button
+              key={tag}
+              onClick={() => handleTagChange(tag)}
+              className={clsx(
+                "px-3 py-1 rounded text-sm",
+                currentTag === tag
+                  ? "bg-lightGreen text-primary"
+                  : "bg-text text-primary hover:bg-blue-50"
+              )}
+            >
+              {tag}
+            </button>
+          ))}
+        </div>
+        )}
     </div>
   );
 }

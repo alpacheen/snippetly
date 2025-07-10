@@ -51,7 +51,7 @@ export default function StarRating({
         onMouseEnter={() => setHover(star)}
         onMouseLeave={() => setHover(0)}
         aria-label={`Rate ${star} star${star > 1 ? "s" : ""}`}
-        className="text-2xl bg-amber-300">
+        className="text-2xl bg-primary text-amber-300">
           {star <= (hover || rating) ? "★" : "☆"}
         </button>
       ))}

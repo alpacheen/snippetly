@@ -20,12 +20,12 @@ export default function SnippetCodeBlock({ code, language }: Props) {
     <div>
       <button
         onClick={handleCopy}
-        className="mb-4 px-4 py-2 bg-neutral-800 text-white rounded hover:bg-neutral-700 transition"
+        className="mb-4 px-4 py-2 bg-darkGreen text-text rounded hover:bg-darkGreen/75 transition cursor-pointer"
       >
         Copy Code
       </button>
 
-      <SyntaxHighlighter language={language.toLowerCase()} style={vscDarkPlus}>
+      <SyntaxHighlighter language={language.toLowerCase()} style={vscDarkPlus} className="border-3 border-text">
         {code}
       </SyntaxHighlighter>
     </div>

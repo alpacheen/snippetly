@@ -13,7 +13,7 @@ export const metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body className="flex flex-col min-h-screen">
+      <body className="flex flex-col min-h-screen bg-primary text-text">
         <Toaster richColors />
         <header className="px-6 py-4 border-b">
           <div className="text-xl font-bold">Snippetly</div>
