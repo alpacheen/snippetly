@@ -1,5 +1,5 @@
-import FeatureCard from './FeatureCard';
 import {Code, Stars, Search, MessageSquare} from 'lucide-react';
+
 
 export default function Features() {
     const features = [
@@ -26,14 +26,14 @@ export default function Features() {
     ];
 
     return (
-        <section className="bg-brand-secondary text-text py-16 px-4 w-max-3xl overflow-hidden">
+        <section className="bg-primary text-text py-16 px-4 max-w-7xl mx-auto overflow-hidden">
           <div className="max-w-6xl mx-auto text-center space-y-12">
             <h2 className="text-3xl md:text-4xl font-bold">How Snippetly Works</h2>
             <div className="grid gap-8 sm:grid-cols-2 md:grid-cols-4">
               {features.map((feature) => (
                 <div
                   key={feature.title}
-                  className="bg-primary text-text rounded-lg p-6 shadow hover:shadow-lg transition"
+                  className="bg-primary border border-darkGreen text-text rounded-lg p-6 shadow hover:shadow-lg transition"
                 >
                   <feature.icon className="w-8 h-8 text-lightGreen mb-4" />
                   <h3 className="text-lg font-semibold mb-2">{feature.title}</h3>
@@ -45,4 +45,5 @@ export default function Features() {
         </section>
       );
     }
+    
     
