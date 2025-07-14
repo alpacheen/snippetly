@@ -39,7 +39,7 @@ export async function generateMetadata({ params }: { params: { id: string } }) {
 export default async function SnippetPage({ params }: { params: { id: string } }) {
   const { data: snippet, error } = await supabase
     .from("snippets")
-    .select("*")
+    .select("title, description, code, language, tags, author, rating, ratings_count")
     .eq("id", params.id)
     .single();
 
