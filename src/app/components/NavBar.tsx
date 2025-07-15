@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { Menu, X } from 'lucide-react';
-import { useUser } from "@/app/context/UserContext";
+import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "next/navigation";
 
 const navLinks = [
@@ -13,7 +13,7 @@ const navLinks = [
 
 export default function NavBar() {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { user, signOut } = useUser();
+  const { user, signOut } = useAuth();
   const router = useRouter();
 
   const handleLogout = async () => {

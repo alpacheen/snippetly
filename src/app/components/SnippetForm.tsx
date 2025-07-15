@@ -1,35 +1,13 @@
 "use client";
-import { useForm, Controller, ControllerRenderProps } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
-import CodeMirror from "@uiw/react-codemirror";
-import { javascript } from "@codemirror/lang-javascript";
-import { python } from "@codemirror/lang-python";
-import { java } from "@codemirror/lang-java";
-import { markdown } from "@codemirror/lang-markdown";
-import { vscodeDark } from "@uiw/codemirror-theme-vscode";
 
 const LANGUAGES = [
   "JavaScript", "TypeScript", "Python", "Java", "C#", "Ruby", "Go", "PHP", "C++", "Swift", "Kotlin", "Rust", "Dart", "Scala", "Shell", "HTML", "CSS"
 ];
-
-function getLanguageExtension(language: string) {
-  switch (language) {
-    case "JavaScript":
-    case "TypeScript":
-      return javascript();
-    case "Python":
-      return python();
-    case "Java":
-      return java();
-    case "Markdown":
-      return markdown();
-    default:
-      return javascript();
-  }
-}
 
 type FormData = {
   title: string;
@@ -100,22 +78,11 @@ export default function SnippetForm({ userId }: SnippetFormProps) {
       </div>
       <div>
         <label className="block font-semibold mb-1">Code</label>
-        <Controller
-          name="code"
-          control={control}
-          rules={{ required: true }}
-          render={({ field }: { field: ControllerRenderProps<FormData, "code"> }) => (
-            <CodeMirror
-              value={field.value || ""}
-              height="250px"
-              theme={vscodeDark}
-              extensions={[getLanguageExtension(selectedLanguage)]}
-              onChange={field.onChange}
-              className="rounded border"
-              basicSetup={{ lineNumbers: true, highlightActiveLine: true }}
-              readOnly={loading}
-            />
-          )}
+        <textarea
+          {...register("code", { required: true })}
+          className="w-full border px-3 py-2 rounded bg-primary text-text font-mono"
+          rows={12}
+          disabled={loading}
         />
         {errors.code && <span className="text-red-500 text-sm">Code is required</span>}
       </div>

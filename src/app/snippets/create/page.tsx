@@ -1,10 +1,10 @@
 "use client";
 import SnippetForm from "@/app/components/SnippetForm";
-import { useUser } from "@/app/context/UserContext";
+import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "next/navigation";
 
 export default function CreateSnippetPage() {
-  const { user, loading } = useUser();
+  const { user, loading } = useAuth();
   const router = useRouter();
 
   if (loading) {

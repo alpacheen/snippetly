@@ -1,10 +1,10 @@
 "use client";
-import { useUser } from "@/app/context/UserContext";
+import { useAuth } from "@/lib/auth-context";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 export default function ProfilePage() {
-  const { user, loading } = useUser();
+  const { user, loading } = useAuth();
   const [form, setForm] = useState({ display_name: "", bio: "", avatar_url: "" });
   const [saving, setSaving] = useState(false);
 
@@ -31,6 +31,7 @@ export default function ProfilePage() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
+    if (!user) return;
     await supabase.from("profiles").update(form).eq("id", user.id);
     setSaving(false);
   };

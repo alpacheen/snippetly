@@ -25,7 +25,7 @@ export default function AuthForm({ mode, onSuccess }: AuthFormProps) {
 
     try {
       if (mode === 'register') {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -36,7 +36,18 @@ export default function AuthForm({ mode, onSuccess }: AuthFormProps) {
           }
         });
 
-        if (error) throw error;
+        if (!error && data.user) {
+          // Create profile row
+          await supabase.from('profiles').insert([
+            {
+              id: data.user.id, // This must match the user's UUID
+              username,
+              bio: '',
+              avatar_url: '',
+              created_at: new Date().toISOString()
+            }
+          ]);
+        }
         
         toast.success('Registration successful! Please check your email to verify your account.');
         router.push('/login');

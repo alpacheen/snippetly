@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { useUser } from "@/app/context/UserContext";
+import { useAuth } from "@/lib/auth-context";
 import { toast } from "sonner";
 
 type Props = {
@@ -9,7 +9,7 @@ type Props = {
 };
 
 export default function StarRating({ snippetId }: Props) {
-  const { user } = useUser();
+  const { user } = useAuth();
   const [userRating, setUserRating] = useState<number | null>(null);
   const [average, setAverage] = useState<number>(0);
   const [count, setCount] = useState<number>(0);
