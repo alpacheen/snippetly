@@ -4,9 +4,10 @@ import TabsFilter from "../components/TabsFilter";
 
 export const dynamic = "force-dynamic";
 
-export default async function SnippetsPage({searchParams, }:{ searchParams:{q?:string; language?: string; tab?: string; tag?: string}}) {
-  
-  const tab = searchParams.tab || "All";
+export default async function SnippetsPage({ searchParams }: { searchParams: Promise<{ q?: string; tab?: string }> }) {
+  const params = await searchParams;
+  const query = params.q;
+  const tab = params.tab;
 
   const {data: allSnippets} = await supabase
     .from("snippets")
@@ -16,20 +17,20 @@ export default async function SnippetsPage({searchParams, }:{ searchParams:{q?:s
       new Set(allSnippets?.flatMap(snippet => snippet.tags || []))
     )
 
-  let query = supabase.from("snippets").select("*");
+  let queryParams = supabase.from("snippets").select("*");
 
-  if (tab === "Language" && searchParams.language) {
-    query = query.eq("language", searchParams.language);
-  } else if (tab === "Tags" && searchParams.tag) {
-    query = query.contains("tags", [searchParams.tag]);
-  } else if (searchParams.q) {
+  if (tab === "Language" && params.q) {
+    queryParams = queryParams.eq("language", params.q);
+  } else if (tab === "Tags" && params.q) {
+    queryParams = queryParams.contains("tags", [params.q]);
+  } else if (query) {
     // Search in title and description
-    query = query.or(
-      `title.ilike.%${searchParams.q}%,description.ilike.%${searchParams.q}%`
+    queryParams = queryParams.or(
+      `title.ilike.%${query}%,description.ilike.%${query}%`
     );
   }
 
-  const { data: snippets, error } = await query.order("created_at", {
+  const { data: snippets, error } = await queryParams.order("created_at", {
     ascending: false,
   });
 
