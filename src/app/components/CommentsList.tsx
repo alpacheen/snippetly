@@ -25,7 +25,7 @@ export default function CommentsList({ snippetId }: Props) {
         setLoading(true);
         const { data, error } = await supabase
           .from("comments")
-          .select("id, author, content, created_at")
+          .select("id, author, content, created_at, snippet_id")
           .eq("snippet_id", snippetId)
           .order("created_at", { ascending: false });
 

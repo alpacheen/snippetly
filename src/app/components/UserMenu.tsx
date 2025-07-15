@@ -1,6 +1,6 @@
 "use client";
 
-import { useAuth } from './AuthProvider';
+import { useAuth } from '@/lib/auth-context';
 import { User, LogOut, Settings, PlusCircle } from 'lucide-react';
 import Link from 'next/link';
 
