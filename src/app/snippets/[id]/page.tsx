@@ -7,11 +7,12 @@ import StarRating from "@/app/components/StarRating";
 
 export const dynamic = "force-dynamic";
 
-export async function generateMetadata({ params }: { params: { id: string } }) {
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const { data: snippet } = await supabase
     .from("snippets")
     .select("title, description")
-    .eq("id", params.id)
+    .eq("id", id)
     .single();
 
   if (!snippet) {
