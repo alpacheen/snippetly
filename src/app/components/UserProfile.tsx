@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import { supabase } from "@/lib/supabase";
 import { User, Code, Star } from "lucide-react";
@@ -32,26 +32,24 @@ export default function UserProfile({ userId }: { userId: string }) {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("snippets");
 
-  const fetchUserProfile = async () => {
+  const fetchUserProfile = useCallback(async () => {
     const { data } = await supabase
       .from("profiles")
       .select("*")
       .eq("id", userId)
       .single();
-
     if (data) setProfile(data);
     setLoading(false);
-  };
+  }, [userId]);
 
-  const fetchUserSnippets = async () => {
+  const fetchUserSnippets = useCallback(async () => {
     const { data } = await supabase
       .from("snippets")
       .select("id, title, language, rating, ratings_count, created_at")
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
-
     if (data) setSnippets(data);
-  };
+  }, [userId]);
 
   useEffect(() => {
     fetchUserProfile();
