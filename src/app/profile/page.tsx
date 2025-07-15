@@ -5,7 +5,6 @@ import { supabase } from "@/lib/supabase";
 
 export default function ProfilePage() {
   const { user, loading } = useUser();
-  const [profile, setProfile] = useState<any>(null);
   const [form, setForm] = useState({ display_name: "", bio: "", avatar_url: "" });
   const [saving, setSaving] = useState(false);
 
@@ -17,7 +16,6 @@ export default function ProfilePage() {
       .eq("id", user.id)
       .single()
       .then(({ data }) => {
-        setProfile(data);
         setForm({
           display_name: data?.display_name || "",
           bio: data?.bio || "",

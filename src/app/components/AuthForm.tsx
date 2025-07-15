@@ -25,7 +25,7 @@ export default function AuthForm({ mode, onSuccess }: AuthFormProps) {
 
     try {
       if (mode === 'register') {
-        const { data, error } = await supabase.auth.signUp({
+        const { error } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -38,12 +38,10 @@ export default function AuthForm({ mode, onSuccess }: AuthFormProps) {
 
         if (error) throw error;
         
-        if (data.user) {
-          toast.success('Registration successful! Please check your email to verify your account.');
-          router.push('/login');
-        }
+        toast.success('Registration successful! Please check your email to verify your account.');
+        router.push('/login');
       } else {
-        const { data, error } = await supabase.auth.signInWithPassword({
+        const { error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
@@ -54,8 +52,12 @@ export default function AuthForm({ mode, onSuccess }: AuthFormProps) {
         onSuccess?.();
         router.push('/snippets');
       }
-    } catch (error: any) {
-      toast.error(error.message || 'An error occurred');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        toast.error(error.message || 'An error occurred');
+      } else {
+        toast.error('An error occurred');
+      }
     } finally {
       setLoading(false);
     }

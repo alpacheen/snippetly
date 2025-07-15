@@ -4,11 +4,11 @@ import TabsFilter from "../components/TabsFilter";
 
 export const dynamic = "force-dynamic";
 
-export default async function SnippetsPage({searchParams, }:{ searchParams:{q?:string; language?: string; tab?: string}}) {
+export default async function SnippetsPage({searchParams, }:{ searchParams:{q?:string; language?: string; tab?: string; tag?: string}}) {
   
   const tab = searchParams.tab || "All";
 
-  const {data: allSnippets, error: tagsError} = await supabase
+  const {data: allSnippets} = await supabase
     .from("snippets")
     .select("tags");
 

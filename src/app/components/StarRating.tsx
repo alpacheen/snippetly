@@ -19,7 +19,7 @@ export default function StarRating({ snippetId }: Props) {
   useEffect(() => {
     async function fetchRatings() {
       setLoading(true);
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from("ratings")
         .select("rating, user_id")
         .eq("snippet_id", snippetId);

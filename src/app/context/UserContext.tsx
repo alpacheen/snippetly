@@ -1,9 +1,10 @@
 "use client";
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { supabase } from "@/lib/supabase";
+import { User } from "@supabase/supabase-js";
 
 interface UserContextType {
-  user: any;
+  user: User | null;
   loading: boolean;
   signOut: () => Promise<void>;
 }
@@ -11,14 +12,14 @@ interface UserContextType {
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export function UserProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let mounted = true;
     const getUser = async () => {
       setLoading(true);
-      const { data, error } = await supabase.auth.getUser();
+      const { data } = await supabase.auth.getUser();
       if (mounted) {
         setUser(data?.user || null);
         setLoading(false);

@@ -37,8 +37,12 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
         toast.success('Signed in successfully!');
       }
       onClose();
-    } catch (error: any) {
-      toast.error(error.message || 'Authentication failed');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        toast.error(error.message || 'Authentication failed');
+      } else {
+        toast.error('Authentication failed');
+      }
     } finally {
       setLoading(false);
     }
@@ -47,8 +51,12 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const handleProviderSignIn = async (provider: 'github' | 'google') => {
     try {
       await signInWithProvider(provider);
-    } catch (error: any) {
-      toast.error(error.message || 'Authentication failed');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        toast.error(error.message || 'Authentication failed');
+      } else {
+        toast.error('Authentication failed');
+      }
     }
   };
 

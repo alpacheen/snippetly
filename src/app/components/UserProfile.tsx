@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import { User, Code, Star, Upload } from "lucide-react";
+import { User, Code, Star } from "lucide-react";
 import SnippetCard from "./SnippetCard";
 
 type UserProfile = {
@@ -37,7 +37,7 @@ export default function UserProfile({ userId }: { userId: string }) {
   }, [userId]);
 
   const fetchUserProfile = async () => {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("profiles")
       .select("*")
       .eq("id", userId)
@@ -48,7 +48,7 @@ export default function UserProfile({ userId }: { userId: string }) {
   };
 
   const fetchUserSnippets = async () => {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("snippets")
       .select("id, title, language, rating, ratings_count, created_at")
       .eq("user_id", userId)

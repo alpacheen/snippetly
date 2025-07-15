@@ -34,11 +34,12 @@ export async function generateMetadata({ params }: { params: { id: string } }) {
   };
 }
 
-export default async function SnippetPage({ params }: { params: { id: string } }) {
+export default async function SnippetPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const { data: snippet, error } = await supabase
     .from("snippets")
     .select("*")
-    .eq("id", params.id)
+    .eq("id", id)
     .single();
 
   if (error || !snippet) {

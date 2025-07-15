@@ -2,7 +2,7 @@
 
 import { ReactNode, useState } from "react";
 import Link from "next/link";
-import { Code, Plus, Search, Home, User, LogOut, LogIn } from "lucide-react";
+import { Code, Plus, Search, Home, LogOut, LogIn } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import AuthModal from "./AuthModal";
 
