@@ -82,7 +82,7 @@ export default function TabsFilter({ tags }: TabsFilterProps) {
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
         className="w-full border px-4 py-2 rounded"/>
-      <TabGroup
+      <Tab.Group
         selectedIndex={tabs.findIndex((tab) => tab === currentTab)}
         onChange={(index) => handleTabChange(tabs[index])}
       >

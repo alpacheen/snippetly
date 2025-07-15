@@ -1,41 +1,60 @@
 "use client";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { useUser } from "@/app/context/UserContext";
 import { toast } from "sonner";
 
 type Props = {
   snippetId: string;
-  currentRating: number;
-  ratingsCount: number;
 };
 
-export default function StarRating({
-  snippetId,
-  currentRating,
-  ratingsCount,
-}: Props) {
-  const [hover, setHover] = useState<number>(0);
-  const [rating, setRating] = useState<number | null>(null);
+export default function StarRating({ snippetId }: Props) {
+  const { user } = useUser();
+  const [userRating, setUserRating] = useState<number | null>(null);
+  const [average, setAverage] = useState<number>(0);
+  const [count, setCount] = useState<number>(0);
+  const [loading, setLoading] = useState(true);
 
-  const handleRatingChange = async (newRating: number) => {
-    setRating(newRating);
+  
+  useEffect(() => {
+    async function fetchRatings() {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from("ratings")
+        .select("rating, user_id")
+        .eq("snippet_id", snippetId);
 
-    const updatedRating = (
-      (currentRating * ratingsCount + newRating) /
-      (ratingsCount + 1)
-    ).toFixed(2);
+      if (data) {
+        setCount(data.length);
+        setAverage(
+          data.length ? data.reduce((sum, r) => sum + r.rating, 0) / data.length : 0
+        );
+        if (user) {
+          const myRating = data.find((r) => r.user_id === user.id)?.rating;
+          setUserRating(myRating ?? null);
+        }
+      }
+      setLoading(false);
+    }
+    fetchRatings();
+  }, [snippetId, user]);
 
+  
+  const handleRating = async (rating: number) => {
+    if (!user) {
+      toast.error("You must be logged in to rate.");
+      return;
+    }
+    setUserRating(rating);
     const { error } = await supabase
-      .from("snippets")
-      .update({
-        rating: parseFloat(updatedRating),
-        ratings_count: ratingsCount + 1,
-      })
-      .eq("id", snippetId);
-
+      .from("ratings")
+      .upsert(
+        { user_id: user.id, snippet_id: snippetId, rating },
+        { onConflict: "user_id,snippet_id" }
+      );
     if (error) {
-      console.error("Error updating rating:", error);
-      toast.error("Error submitting rating");
+      console.error(error); 
+      toast.error("Failed to submit rating");
     } else {
       toast.success("Thanks for rating!");
     }
@@ -43,20 +62,19 @@ export default function StarRating({
 
   return (
     <div className="flex items-center space-x-2">
-      {Array.from({ length: 5 }, (_, index) => index + 1).map((star) => (
+      {[1, 2, 3, 4, 5].map((star) => (
         <button
-        key={star}
-        type="button"
-        onClick={() => handleRatingChange(star)}
-        onMouseEnter={() => setHover(star)}
-        onMouseLeave={() => setHover(0)}
-        aria-label={`Rate ${star} star${star > 1 ? "s" : ""}`}
-        className="text-2xl bg-primary text-amber-300">
-          {star <= (hover || rating) ? "★" : "☆"}
+          key={star}
+          type="button"
+          onClick={() => handleRating(star)}
+          className="text-2xl bg-primary text-amber-300"
+          aria-label={`Rate ${star} star${star > 1 ? "s" : ""}`}
+        >
+          {star <= (userRating ?? 0) ? "★" : "☆"}
         </button>
       ))}
       <span className="text-sm text-neutral-500">
-        {currentRating.toFixed(1)} ({ratingsCount} ratings)
+        {loading ? "..." : `(${count} ratings, avg: ${average.toFixed(2)})`}
       </span>
     </div>
   );
