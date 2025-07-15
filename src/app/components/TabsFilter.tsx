@@ -2,6 +2,7 @@
 import { Tab } from "@headlessui/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
+import clsx from "clsx";
 
 type TabsFilterProps = {
   tags: string[];
@@ -41,16 +42,16 @@ export default function TabsFilter({ tags }: TabsFilterProps) {
 
   useEffect(() => {
     const timeout = setTimeout(() => {
-      const params = new URLSearchParams(searchParams);
-      if (searchQuery) {
-        params.set("q", searchQuery);
-      } else {
-        params.delete("q");
-      }
-      router.push(`?${params.toString()}`);
-    }, 400);
+        const params = new URLSearchParams(searchParams);
+        if (searchQuery) {
+          params.set("q", searchQuery);
+        } else {
+          params.delete("q");
+        }
+        router.push(`?${params.toString()}`);
+    },400);
     return () => clearTimeout(timeout);
-  }, [searchQuery, searchParams, router]);
+  },[searchQuery, searchParams, router]);
 
   const handleTabChange = (tab: string) => {
     const params = new URLSearchParams(searchParams);
@@ -72,18 +73,16 @@ export default function TabsFilter({ tags }: TabsFilterProps) {
     const params = new URLSearchParams(searchParams);
     params.set("tag", tag);
     router.push(`?${params.toString()}`);
-  };
+  }
 
   return (
     <div className="mb-6">
-      <input
-        type="text"
-        placeholder="Search snippets..."
+        <input type="text"
+        placeholder="Search snippets..." 
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
-        className="w-full border px-4 py-2 rounded mb-4"
-      />
-      <Tab.Group
+        className="w-full border px-4 py-2 rounded"/>
+      <TabGroup
         selectedIndex={tabs.findIndex((tab) => tab === currentTab)}
         onChange={(index) => handleTabChange(tabs[index])}
       >
@@ -92,11 +91,12 @@ export default function TabsFilter({ tags }: TabsFilterProps) {
             <Tab
               key={tab}
               className={({ selected }) =>
-                `px-4 py-2 font-medium text-sm ${
+                clsx(
+                  "px-4 py-2 font-medium text-sm",
                   selected
                     ? "border-b-2 border-darkGreen text-amber-300"
                     : "text-textSecondary hover:text-darkGreen/90"
-                }`
+                )
               }
             >
               {tab}
@@ -110,11 +110,12 @@ export default function TabsFilter({ tags }: TabsFilterProps) {
             <button
               key={language}
               onClick={() => handleLanguageChange(language)}
-              className={`px-3 py-1 rounded ${
+              className={clsx(
+                "px-3 py-1 rounded",
                 currentLanguage === language
                   ? "bg-lightGreen text-primary"
                   : "bg-text text-primary hover:bg-blue-50"
-              }`}
+              )}
             >
               {language}
             </button>
@@ -127,17 +128,18 @@ export default function TabsFilter({ tags }: TabsFilterProps) {
             <button
               key={tag}
               onClick={() => handleTagChange(tag)}
-              className={`px-3 py-1 rounded text-sm ${
+              className={clsx(
+                "px-3 py-1 rounded text-sm",
                 currentTag === tag
                   ? "bg-lightGreen text-primary"
                   : "bg-text text-primary hover:bg-blue-50"
-              }`}
+              )}
             >
               {tag}
             </button>
           ))}
         </div>
-      )}
+        )}
     </div>
   );
 }

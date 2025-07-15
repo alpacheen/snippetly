@@ -45,15 +45,14 @@ export default function StarRating({
     <div className="flex items-center space-x-2">
       {Array.from({ length: 5 }, (_, index) => index + 1).map((star) => (
         <button
-          key={star}
-          type="button"
-          onClick={() => handleRatingChange(star)}
-          onMouseEnter={() => setHover(star)}
-          onMouseLeave={() => setHover(0)}
-          aria-label={`Rate ${star} star${star > 1 ? "s" : ""}`}
-          className="text-2xl bg-primary text-amber-300 hover:text-amber-400 transition-colors cursor-pointer"
-        >
-          {star <= (hover || rating || 0) ? "★" : "☆"}
+        key={star}
+        type="button"
+        onClick={() => handleRatingChange(star)}
+        onMouseEnter={() => setHover(star)}
+        onMouseLeave={() => setHover(0)}
+        aria-label={`Rate ${star} star${star > 1 ? "s" : ""}`}
+        className="text-2xl bg-primary text-amber-300">
+          {star <= (hover || rating) ? "★" : "☆"}
         </button>
       ))}
       <span className="text-sm text-neutral-500">

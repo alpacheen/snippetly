@@ -4,34 +4,18 @@ import TabsFilter from "../components/TabsFilter";
 
 export const dynamic = "force-dynamic";
 
-type SearchParams = {
-  q?: string;
-  language?: string;
-  tab?: string;
-  tag?: string;
-};
-
-export default async function SnippetsPage({
-  searchParams,
-}: {
-  searchParams: SearchParams;
-}) {
+export default async function SnippetsPage({searchParams, }:{ searchParams:{q?:string; language?: string; tab?: string}}) {
+  
   const tab = searchParams.tab || "All";
 
-  // Get all tags for the filter
-  const { data: allSnippets, error: tagsError } = await supabase
+  const {data: allSnippets, error: tagsError} = await supabase
     .from("snippets")
     .select("tags");
 
-  if (tagsError) {
-    console.error("Error fetching tags:", tagsError);
-  }
+    const allTags: string[] = Array.from(
+      new Set(allSnippets?.flatMap(snippet => snippet.tags || []))
+    )
 
-  const allTags: string[] = Array.from(
-    new Set(allSnippets?.flatMap((snippet) => snippet.tags || []))
-  );
-
-  // Build query based on filters
   let query = supabase.from("snippets").select("*");
 
   if (tab === "Language" && searchParams.language) {
@@ -65,22 +49,16 @@ export default async function SnippetsPage({
     <section className="space-y-6">
       <h1 className="text-2xl font-bold">Browse Snippets</h1>
       <TabsFilter tags={allTags} />
-      {snippets && snippets.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {snippets.map((snippet) => (
-            <SnippetCard
-              key={snippet.id}
-              title={snippet.title}
-              language={snippet.language}
-              href={`/snippets/${snippet.id}`}
-            />
-          ))}
-        </div>
-      ) : (
-        <p className="text-neutral-500">
-          No snippets found. Try adjusting your search or filters.
-        </p>
-      )}
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        {snippets?.map((snippet) => (
+          <SnippetCard
+            key={snippet.id}
+            title={snippet.title}
+            language={snippet.language}
+            href={`/snippets/${snippet.id}`}
+          />
+        ))}
+      </div>
     </section>
   );
 }
