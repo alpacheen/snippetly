@@ -1,19 +1,3 @@
-<<<<<<< HEAD
-import SnippetCreationForm from "@/app/components/SnippetCreationForm";
-
-export const metadata = {
-    title: "Create New Snippet | Snippetly",
-  description: "Create and share a new code snippet with the developer community.",
-}
-
-export default function CreateSnippetPage() {
-    return (
-        <div className="max-w-4xl mx-auto">
-          <SnippetCreationForm />
-        </div>
-      );
-}
-=======
 "use client";
 import SnippetForm from "@/app/components/SnippetForm";
 import { useUser } from "@/app/context/UserContext";
@@ -48,5 +32,4 @@ export default function CreateSnippetPage() {
       <SnippetForm userId={user.id} />
     </section>
   );
-} 
->>>>>>> f246f67 (Save local changes before rebase)
+}
