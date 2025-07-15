@@ -1,8 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import SnippetCard from "@/app/components/SnippetCard";
 import TabsFilter from "../components/TabsFilter";
-import Link from "next/link";
-
 
 export const dynamic = "force-dynamic";
 
@@ -20,14 +18,32 @@ export default async function SnippetsPage({searchParams, }:{ searchParams:{q?:s
 
   let query = supabase.from("snippets").select("*");
 
-  if(tab === "Language" && searchParams.language) {
+  if (tab === "Language" && searchParams.language) {
     query = query.eq("language", searchParams.language);
-  } else if(tab === "Tags" && searchParams.tags) {
-    query = query.contains("tags", [searchParams.tags]);
-  } else {
-    query = query.ilike("title", `%${searchParams.q || ""}%`);
+  } else if (tab === "Tags" && searchParams.tag) {
+    query = query.contains("tags", [searchParams.tag]);
+  } else if (searchParams.q) {
+    // Search in title and description
+    query = query.or(
+      `title.ilike.%${searchParams.q}%,description.ilike.%${searchParams.q}%`
+    );
   }
-  const { data: snippets, error } = await query.order("created_at", { ascending: false });
+
+  const { data: snippets, error } = await query.order("created_at", {
+    ascending: false,
+  });
+
+  if (error) {
+    console.error("Error fetching snippets:", error);
+    return (
+      <section className="space-y-6">
+        <h1 className="text-2xl font-bold">Browse Snippets</h1>
+        <p className="text-red-500">
+          Error loading snippets. Please try again.
+        </p>
+      </section>
+    );
+  }
 
   return (
     <section className="space-y-6">
@@ -46,4 +62,3 @@ export default async function SnippetsPage({searchParams, }:{ searchParams:{q?:s
     </section>
   );
 }
-

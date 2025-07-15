@@ -1,5 +1,5 @@
 "use client";
-import { TabGroup, Tab } from "@headlessui/react";
+import { Tab } from "@headlessui/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
 import clsx from "clsx";
@@ -103,7 +103,7 @@ export default function TabsFilter({ tags }: TabsFilterProps) {
             </Tab>
           ))}
         </Tab.List>
-      </TabGroup>
+      </Tab.Group>
       {currentTab === "Language" && (
         <div className="flex flex-wrap gap-2 border-b pb-2">
           {languages.map((language) => (

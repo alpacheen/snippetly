@@ -1,5 +1,5 @@
 "use client";
-import React, {useState} from "react";
+import React, { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 
@@ -14,8 +14,8 @@ export default function StarRating({
   currentRating,
   ratingsCount,
 }: Props) {
-  const [hover, setHover] = useState(0);
-  const [rating, setRating] = useState(null);
+  const [hover, setHover] = useState<number>(0);
+  const [rating, setRating] = useState<number | null>(null);
 
   const handleRatingChange = async (newRating: number) => {
     setRating(newRating);
@@ -25,11 +25,10 @@ export default function StarRating({
       (ratingsCount + 1)
     ).toFixed(2);
 
-
     const { error } = await supabase
       .from("snippets")
       .update({
-        rating: updatedRating,
+        rating: parseFloat(updatedRating),
         ratings_count: ratingsCount + 1,
       })
       .eq("id", snippetId);
@@ -41,6 +40,7 @@ export default function StarRating({
       toast.success("Thanks for rating!");
     }
   };
+
   return (
     <div className="flex items-center space-x-2">
       {Array.from({ length: 5 }, (_, index) => index + 1).map((star) => (
@@ -55,7 +55,9 @@ export default function StarRating({
           {star <= (hover || rating) ? "★" : "☆"}
         </button>
       ))}
-      <span className="text-sm text-neutral-500">({ratingsCount} ratings)</span>
+      <span className="text-sm text-neutral-500">
+        {currentRating.toFixed(1)} ({ratingsCount} ratings)
+      </span>
     </div>
   );
 }
