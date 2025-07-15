@@ -1,9 +1,14 @@
 import "./globals.css";
 import { ReactNode } from "react";
 import { Toaster } from "sonner";
+<<<<<<< HEAD
 import ClientLayout from "./components/ClientLayout";
 import { AuthProvider } from "@/lib/auth-context";
 
+=======
+import NavBar from "@/app/components/NavBar";
+import { UserProvider } from "@/app/context/UserContext";
+>>>>>>> f246f67 (Save local changes before rebase)
 
 export const metadata = {
   title: "Snippetly - Your AI-powered Snippet Brain",
@@ -70,15 +75,15 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en">
       <body className="flex flex-col min-h-screen bg-primary text-text">
         <Toaster richColors />
-        <header className="px-6 py-4 border-b">
-          <div className="text-xl font-bold">Snippetly</div>
-        </header>
-        <main className="flex-grow container mx-auto px-4 py-6">
-          {children}
-        </main>
-        <footer className="px-6 py-4 border-t text-center text-neutral-500">
-          &copy; {new Date().getFullYear()} Snippetly. All rights reserved.
-        </footer>
+        <UserProvider>
+          <NavBar />
+          <main className="flex-grow container mx-auto px-4 py-6">
+            {children}
+          </main>
+          <footer className="px-6 py-4 border-t text-center text-neutral-500">
+            &copy; {new Date().getFullYear()} Snippetly. All rights reserved.
+          </footer>
+        </UserProvider>
       </body>
     </html>
   );
