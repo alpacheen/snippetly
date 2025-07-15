@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import { supabase } from "@/lib/supabase";
 import { User, Code, Star } from "lucide-react";
 import SnippetCard from "./SnippetCard";
@@ -31,11 +32,6 @@ export default function UserProfile({ userId }: { userId: string }) {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("snippets");
 
-  useEffect(() => {
-    fetchUserProfile();
-    fetchUserSnippets();
-  }, [userId]);
-
   const fetchUserProfile = async () => {
     const { data } = await supabase
       .from("profiles")
@@ -57,6 +53,11 @@ export default function UserProfile({ userId }: { userId: string }) {
     if (data) setSnippets(data);
   };
 
+  useEffect(() => {
+    fetchUserProfile();
+    fetchUserSnippets();
+  }, [userId, fetchUserProfile, fetchUserSnippets]);
+
   if (loading) return <div className="animate-pulse">Loading profile...</div>;
   if (!profile) return <div>Profile not found</div>;
 
@@ -67,9 +68,11 @@ export default function UserProfile({ userId }: { userId: string }) {
         <div className="flex items-start gap-4">
           <div className="w-20 h-20 bg-lightGreen rounded-full flex items-center justify-center">
             {profile.avatar_url ? (
-              <img
+              <Image
                 src={profile.avatar_url}
                 alt={profile.username}
+                width={80}
+                height={80}
                 className="w-full h-full rounded-full object-cover"
               />
             ) : (

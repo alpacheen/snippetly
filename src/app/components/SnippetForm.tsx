@@ -1,5 +1,5 @@
 "use client";
-import { useForm, Controller } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
@@ -22,12 +22,11 @@ type SnippetFormProps = {
 };
 
 export default function SnippetForm({ userId }: SnippetFormProps) {
-  const { register, handleSubmit, control, formState: { errors }, reset, watch } = useForm<FormData>({
+  const { register, handleSubmit, formState: { errors }, reset } = useForm<FormData>({
     defaultValues: { language: "JavaScript" }
   });
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const selectedLanguage = watch("language") || "JavaScript";
 
   const onSubmit = async (data: FormData) => {
     setLoading(true);
