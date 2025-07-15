@@ -34,7 +34,7 @@ export async function generateMetadata({ params }: { params: { id: string } }) {
   };
 }
 
-export default async function SnippetPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function SnippetDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { data: snippet, error } = await supabase
     .from("snippets")
