@@ -1,36 +1,65 @@
-"use client";
-import SnippetForm from "@/app/components/SnippetForm";
-import { useUser } from "@/app/context/UserContext";
-import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
+import { notFound } from "next/navigation";
+import SnippetCodeBlock from "@/app/components/SnippetCodeBlock";
+import CommentsList from "@/app/components/CommentsList";
+import NewCommentForm from "@/app/components/NewCommentForm";
+import StarRating from "@/app/components/StarRating";
 
-export default function CreateSnippetPage() {
-  const { user, loading } = useUser();
-  const router = useRouter();
+export const dynamic = "force-dynamic";
 
-  if (loading) {
-    return <div className="flex justify-center items-center h-64">Loading...</div>;
+export async function generateMetadata({ params }: { params: { id: string } }) {
+  const { data: snippet } = await supabase
+    .from("snippets")
+    .select("title, description")
+    .eq("id", params.id)
+    .single();
+
+  if (!snippet) {
+    return { title: "Snippet Not Found | Snippetly" };
   }
 
-  if (!user) {
-    return (
-      <section className="max-w-xl mx-auto py-12 text-center">
-        <h1 className="text-2xl font-bold mb-4">Sign in to create a snippet</h1>
-        <p className="mb-6">You must be logged in to create and share code snippets.</p>
-        <button
-          className="px-6 py-2 bg-lightGreen text-primary font-semibold rounded hover:bg-lightGreen/80 transition"
-          onClick={() => router.push("/login")}
-        >
-          Login / Sign Up
-        </button>
-      </section>
-    );
+  return {
+    title: `${snippet.title} | Snippetly`,
+    description: snippet.description,
+    openGraph: {
+      images: [
+        {
+          url: `${process.env.NEXT_PUBLIC_BASE_URL}/api/og?title=${encodeURIComponent(snippet.title)}`,
+          width: 1200,
+          height: 630,
+          alt: snippet.title,
+        },
+      ],
+    },
+  };
+}
+
+export default async function SnippetPage({ params }: { params: { id: string } }) {
+  const { data: snippet, error } = await supabase
+    .from("snippets")
+    .select("*")
+    .eq("id", params.id)
+    .single();
+
+  if (error || !snippet) {
+    notFound();
   }
 
   return (
-    <section className="max-w-2xl mx-auto py-8">
-      <h1 className="text-2xl font-bold mb-6">Create a New Snippet</h1>
-      <SnippetForm userId={user.id} />
-    </section>
+    <article className="prose lg:prose-xl max-w-4xl mx-auto py-8">
+      <h1>{snippet.title}</h1>
+      <p className="text-textSecondary">{snippet.description}</p>
+      <p className="text-sm text-neutral-500 mb-4">
+        Language: {snippet.language}
+      </p>
+      <SnippetCodeBlock code={snippet.code} language={snippet.language} />
+      <StarRating snippetId={snippet.id} />
+      <p className="mt-4 text-sm text-neutral-400">
+        Tags: {snippet.tags?.join(", ")}
+      </p>
+      <CommentsList snippetId={snippet.id} />
+      <NewCommentForm snippetId={snippet.id} />
+    </article>
   );
 }
 
