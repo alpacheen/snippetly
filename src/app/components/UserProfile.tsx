@@ -8,13 +8,9 @@ import SnippetCard from "./SnippetCard";
 type UserProfile = {
   id: string;
   username: string;
-  email: string;
   bio?: string;
   avatar_url?: string;
   created_at: string;
-  total_snippets: number;
-  total_ratings: number;
-  average_rating: number;
 };
 
 type UserSnippet = {
@@ -26,35 +22,76 @@ type UserSnippet = {
   created_at: string;
 };
 
+type UserStats = {
+  total_snippets: number;
+  average_rating: number;
+}
+
 export default function UserProfile({ userId }: { userId: string }) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [snippets, setSnippets] = useState<UserSnippet[]>([]);
+  const [stats, setStats] = useState<UserStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("snippets");
 
   const fetchUserProfile = useCallback(async () => {
-    const { data } = await supabase
+    try {
+    const { data, error } = await supabase
       .from("profiles")
-      .select("*")
+      .select("id, username, bio, avatar_url, created_at")
       .eq("id", userId)
       .single();
+
+      if (error) {
+        console.error("Error fetching user profile:", error);
+        return;
+      }
+      
     if (data) setProfile(data);
+    }catch (error) {
+      console.error("Error fetching user profile:", error);
+    } finally {
     setLoading(false);
+    }
   }, [userId]);
 
   const fetchUserSnippets = useCallback(async () => {
-    const { data } = await supabase
-      .from("snippets")
-      .select("id, title, language, rating, ratings_count, created_at")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false });
-    if (data) setSnippets(data);
+    try {
+      const { data, error } = await supabase
+        .from("snippets")
+        .select("id, title, language, rating, ratings_count, created_at")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false });
+      
+      if (error) {
+        console.error("Error fetching snippets:", error);
+        return;
+      }
+      
+      if (data) {
+        setSnippets(data);
+        
+        
+        const totalSnippets = data.length;
+        const avgRating = data.length > 0 
+          ? data.reduce((sum, snippet) => sum + (snippet.rating || 0), 0) / data.length
+          : 0;
+        
+        setStats({
+          total_snippets: totalSnippets,
+          average_rating: avgRating
+        });
+      }
+    } catch (error) {
+      console.error("Error in fetchUserSnippets:", error);
+    }
   }, [userId]);
 
   useEffect(() => {
     fetchUserProfile();
     fetchUserSnippets();
   }, [userId, fetchUserProfile, fetchUserSnippets]);
+    
 
   if (loading) return <div className="animate-pulse">Loading profile...</div>;
   if (!profile) return <div>Profile not found</div>;
@@ -68,7 +105,7 @@ export default function UserProfile({ userId }: { userId: string }) {
             {profile.avatar_url ? (
               <Image
                 src={profile.avatar_url}
-                alt={profile.username}
+                alt={profile.username || "User"}
                 width={80}
                 height={80}
                 className="w-full h-full rounded-full object-cover"
@@ -85,11 +122,11 @@ export default function UserProfile({ userId }: { userId: string }) {
             <div className="flex gap-4 mt-4 text-sm">
               <div className="flex items-center gap-1">
                 <Code className="w-4 h-4" />
-                <span>{profile.total_snippets} snippets</span>
+                <span>{stats?.total_snippets} snippets</span>
               </div>
               <div className="flex items-center gap-1">
                 <Star className="w-4 h-4 text-amber-300" />
-                <span>{profile.average_rating.toFixed(1)} avg rating</span>
+                <span>{stats?.average_rating.toFixed(1)} avg rating</span>
               </div>
             </div>
           </div>
