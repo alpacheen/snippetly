@@ -1,5 +1,5 @@
 "use client";
-import { Tab } from "@headlessui/react";
+import { Tab, TabGroup, TabList } from "@headlessui/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
 import clsx from "clsx";
@@ -60,6 +60,7 @@ export default function TabsFilter({ tags }: TabsFilterProps) {
     if (tab !== "Tags") {
       params.delete("tag");
     }
+    
     router.push(`?${params.toString()}`);
   };
 
@@ -75,6 +76,7 @@ export default function TabsFilter({ tags }: TabsFilterProps) {
     router.push(`?${params.toString()}`);
   }
 
+
   return (
     <div className="mb-6">
         <input type="text"
@@ -82,17 +84,16 @@ export default function TabsFilter({ tags }: TabsFilterProps) {
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
         className="w-full border px-4 py-2 rounded"/>
-      <Tab.Group
-        selectedIndex={tabs.findIndex((tab) => tab === currentTab)}
-        onChange={(index) => handleTabChange(tabs[index])}
-      >
-        <Tab.List className="flex space-x-2 border-b pb-2 mb-4">
+      <TabGroup 
+      selectedIndex={tabs.indexOf(currentTab)}
+      onChange={(index) => handleTabChange(tabs[index])}>
+        <TabList className="flex space-x-2 border-b pb-2 mb-4">
           {tabs.map((tab) => (
             <Tab
               key={tab}
               className={({ selected }) =>
                 clsx(
-                  "px-4 py-2 font-medium text-sm",
+                  "px-4 py-2 font-medium text-sm cursor-pointer",
                   selected
                     ? "border-b-2 border-darkGreen text-amber-300"
                     : "text-textSecondary hover:text-darkGreen/90"
@@ -102,8 +103,8 @@ export default function TabsFilter({ tags }: TabsFilterProps) {
               {tab}
             </Tab>
           ))}
-        </Tab.List>
-      </Tab.Group>
+        </TabList>
+      </TabGroup>
       {currentTab === "Language" && (
         <div className="flex flex-wrap gap-2 border-b pb-2">
           {languages.map((language) => (
@@ -111,10 +112,10 @@ export default function TabsFilter({ tags }: TabsFilterProps) {
               key={language}
               onClick={() => handleLanguageChange(language)}
               className={clsx(
-                "px-3 py-1 rounded",
+                "px-3 py-1 rounded cursor-pointer",
                 currentLanguage === language
-                  ? "bg-lightGreen text-primary"
-                  : "bg-text text-primary hover:bg-blue-50"
+                  ? "bg-lightGreen text-primary cursor-pointer"
+                  : "bg-text text-primary hover:bg-blue-50 cursor-pointer"
               )}
             >
               {language}
@@ -129,10 +130,10 @@ export default function TabsFilter({ tags }: TabsFilterProps) {
               key={tag}
               onClick={() => handleTagChange(tag)}
               className={clsx(
-                "px-3 py-1 rounded text-sm",
+                "px-3 py-1 rounded text-sm cursor-pointer",
                 currentTag === tag
-                  ? "bg-lightGreen text-primary"
-                  : "bg-text text-primary hover:bg-blue-50"
+                  ? "bg-lightGreen text-primary cursor-pointer"
+                  : "bg-text text-primary hover:bg-blue-50 cursor-pointer"
               )}
             >
               {tag}

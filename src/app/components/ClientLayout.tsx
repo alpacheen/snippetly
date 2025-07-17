@@ -91,4 +91,3 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
       </footer>
     </>
   );
-}

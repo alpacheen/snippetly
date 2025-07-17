@@ -4,10 +4,12 @@ import TabsFilter from "../components/TabsFilter";
 
 export const dynamic = "force-dynamic";
 
-export default async function SnippetsPage({ searchParams }: { searchParams: Promise<{ q?: string; tab?: string }> }) {
+export default async function SnippetsPage({ searchParams }: { searchParams: Promise<{ q?: string; tab?: string; language?: string; tag?: string }> }) {
   const params = await searchParams;
   const query = params.q;
   const tab = params.tab;
+  const language = params.language;
+  const tag = params.tag;
 
   const {data: allSnippets} = await supabase
     .from("snippets")
@@ -19,11 +21,12 @@ export default async function SnippetsPage({ searchParams }: { searchParams: Pro
 
   let queryParams = supabase.from("snippets").select("*");
 
-  if (tab === "Language" && params.q) {
-    queryParams = queryParams.eq("language", params.q);
-  } else if (tab === "Tags" && params.q) {
-    queryParams = queryParams.contains("tags", [params.q]);
+  if (tab === "Language" && language) {
+    queryParams = queryParams.eq("language", language);
+  } else if (tab === "Tags" && tag) {
+    queryParams = queryParams.contains("tags", [tag]);
   } else if (query) {
+    
     // Search in title and description
     queryParams = queryParams.or(
       `title.ilike.%${query}%,description.ilike.%${query}%`

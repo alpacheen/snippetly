@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 type Comment = {
   id: string;
   snippet_id: string;
-  author: string;
+  user_id: string;
   content: string;
   created_at: string;
 };
@@ -25,7 +25,7 @@ export default function CommentsList({ snippetId }: Props) {
         setLoading(true);
         const { data, error } = await supabase
           .from("comments")
-          .select("id, author, content, created_at, snippet_id")
+          .select("id, user_id, content, created_at, snippet_id")
           .eq("snippet_id", snippetId)
           .order("created_at", { ascending: false });
 
@@ -63,9 +63,9 @@ export default function CommentsList({ snippetId }: Props) {
       <ul className="space-y-4">
         {comments.map((comment) => (
           <li key={comment.id} className="border rounded p-4">
-            <p className="text-sm text-neutral-700">{comment.content}</p>
+            <p className="text-sm text-textSecondary">{comment.content}</p>
             <p className="text-xs text-neutral-400 mt-1">
-              - {comment.author} on {" "}
+              - {comment.user_id} on {" "}
               {new Date(comment.created_at).toLocaleString()}
             </p>
           </li>
