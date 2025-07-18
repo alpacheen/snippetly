@@ -1,9 +1,8 @@
 import { supabase } from "@/lib/supabase";
 import { notFound } from "next/navigation";
 import SnippetCodeBlock from "@/app/components/SnippetCodeBlock";
-import CommentsList from "@/app/components/CommentsList";
-import NewCommentForm from "@/app/components/NewCommentForm";
 import StarRating from "@/app/components/StarRating";
+import CommentsSection from "@/app/components/CommentsSection";
 
 export const dynamic = "force-dynamic";
 
@@ -59,8 +58,7 @@ export default async function SnippetDetailPage({ params }: { params: Promise<{ 
       <p className="mt-4 text-sm text-neutral-400">
         Tags: {snippet.tags?.join(", ")}
       </p>
-      <CommentsList snippetId={snippet.id} />
-      <NewCommentForm snippetId={snippet.id} />
+      <CommentsSection snippetId={snippet.id}/>
     </article>
   );
 }

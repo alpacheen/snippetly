@@ -27,7 +27,7 @@ export default function NewCommentForm({ snippetId, onCommentAdded }: Props) {
     setLoading(true);
     setError(null);
     
-    const {data: {user}, error: useError} = await supabase.auth.getUser();
+    const {data: {user}, error: userError} = await supabase.auth.getUser();
 
     if(userError || !user){
       setError("You must be logged in to comment");
