@@ -34,8 +34,9 @@
 import "./globals.css";
 import { ReactNode } from "react";
 import ClientLayout from "@/app/components/ClientLayout";
+import type { Metadata, Viewport } from "next";
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "Snippetly - Your AI-powered Snippet Brain",
   description:
     "Discover, save and share reusable code snippets. Like Spotify but for devs.",
@@ -61,7 +62,25 @@ export const metadata = {
   },
   keywords: ["code", "snippets", "programming", "development", "sharing", "ai"],
   authors: [{ name: "Snippetly Team" }],
-  viewport: "width=device-width, initial-scale=1",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || 'https://snippetly.dev'),
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  themeColor: '#231f20',
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
@@ -70,7 +89,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <head>
         <link rel="icon" href="/favicon.ico" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-        <meta name="theme-color" content="#231f20" />
+        <meta name="application-name" content="Snippetly" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="Snippetly" />
+        <meta name="format-detection" content="telephone=no" />
+        <meta name="mobile-web-app-capable" content="yes" />
       </head>
       <body className="flex flex-col min-h-screen bg-primary text-text antialiased">
         <ClientLayout>

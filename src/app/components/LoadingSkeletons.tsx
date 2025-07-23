@@ -1,5 +1,3 @@
-// Loading Skeleton Components for better UX
-
 import React from 'react';
 
 // Generic Skeleton component
