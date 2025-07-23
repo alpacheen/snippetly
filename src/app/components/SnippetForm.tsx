@@ -40,7 +40,7 @@ export default function SnippetForm({ userId }: SnippetFormProps) {
         code: sanitizedCode,
         language: data.language,
         tags: tagsArray,
-        owner_id: userId,
+        user_id: userId,
       }
     ]).select().single();
     setLoading(false);

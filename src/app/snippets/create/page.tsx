@@ -1,5 +1,5 @@
 "use client";
-import SnippetForm from "@/app/components/SnippetForm";
+import SnippetCreationForm from "@/app/components/SnippetCreationForm";
 import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "next/navigation";
 
@@ -29,7 +29,7 @@ export default function CreateSnippetPage() {
   return (
     <section className="max-w-2xl mx-auto py-8">
       <h1 className="text-2xl font-bold mb-6">Create a New Snippet</h1>
-      <SnippetForm userId={user.id} />
+      <SnippetCreationForm userId={user.id} />
     </section>
   );
 }
