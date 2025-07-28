@@ -6,6 +6,7 @@ import { Suspense } from "react";
 import { AlertCircle, Search, Plus } from "lucide-react";
 import Link from "next/link";
 import type { Snippet, SearchParams } from "@/types";
+import EnhancedSearchBar from "../components/EnhancedSearchBar";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 300; // Revalidate every 5 minutes
@@ -257,7 +258,7 @@ async function SnippetsContent({ searchParams }: SnippetsPageProps) {
                   {hasFilters && " found"}
                 </>
               ) : (
-                "Loading..."
+                ""
               )}
             </div>
             <Link
@@ -269,6 +270,8 @@ async function SnippetsContent({ searchParams }: SnippetsPageProps) {
             </Link>
           </div>
         </div>
+        {/* Search Bar */}
+        <EnhancedSearchBar/>
 
         {/* Filters */}
         <TabsFilter tags={allTags} />
