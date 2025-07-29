@@ -110,6 +110,9 @@
 
 //     //Check current user
 //     const { data: { user }, error: userError } = await supabase.auth.getUser();
+//     console.log("Current User:", user);
+//     console.log("User Error:", userError);
+//     console.log("User ID:", userId);
 
 //     if (!formData.title.trim() || !formData.code.trim() ){
 //       toast.error("Please fill in all required fields");
@@ -128,10 +131,13 @@
 //       tags: formData.tags,
 //       user_id: userId || user?.id || null,
 //     }
+//     console.log("Insert Data:", insertData);
+//     console.log("Tags type: ", typeof insertData.tags,);
 
 //     setLoading(true);
 
 //     try {
+//       console.log("Submitting snippet to Supabase...");
 //       const { data , error } = await supabase
 //         .from("snippets")
 //         .insert(insertData)
@@ -139,12 +145,14 @@
 //         .single();
 
 //       if (error) {
+//         console.log("Supabase Error Details:", {
 //           message: error.message,
 //           code: error.code,
 //           details: error.details,
 //         });
 //         toast.error("Failed to create snippet: " + error.message);
 //       }
+//       console.log("Snippet created successfully:", data);
 //       toast.success("Snippet created successfully!");
 
 //       setFormData({

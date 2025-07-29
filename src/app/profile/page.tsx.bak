@@ -59,6 +59,7 @@
 //         if(error) {
 //           console.error("Error updating profile:", error);
 //         } else {
+//           console.log("Profile updated successfully");
 //         }
 //       } else {
 //         const {error} = await supabase
@@ -70,6 +71,7 @@
 //         if(error) {
 //           console.error("Error creating profile:", error);
 //         } else {
+//           console.log("Profile created successfully");
 //           setProfileExists(true);
 //         }
 //       }

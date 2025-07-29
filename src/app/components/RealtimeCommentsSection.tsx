@@ -1,7 +1,7 @@
 "use client";
 
-import { supabase } from "@/lib/supabase";
 import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
 import { Avatar } from "@/app/components/SafeImage";
 import { MessageCircle, AlertCircle } from "lucide-react";
 
@@ -11,91 +11,94 @@ type Comment = {
   user_id: string;
   content: string;
   created_at: string;
-  username?: string;
-  avatar_url?: string;
+  profiles?: {
+    username: string;
+    avatar_url?: string;
+  };
 };
 
-type Props = {
+interface RealtimeCommentsListProps {
   snippetId: string;
-  refreshTrigger?: number;
-};
+}
 
-export default function CommentsList({ snippetId, refreshTrigger }: Props) {
+export default function RealtimeCommentsList({ snippetId }: RealtimeCommentsListProps) {
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!snippetId) return;
+
     const fetchComments = async () => {
       try {
         setLoading(true);
         setError(null);
 
-
-        // Step 1: Get comments
-        const { data: commentsData, error: commentsError } = await supabase
+        const { data, error } = await supabase
           .from("comments")
-          .select("*")
+          .select(`
+            *,
+            profiles:user_id (
+              username,
+              avatar_url
+            )
+          `)
           .eq("snippet_id", snippetId)
           .order("created_at", { ascending: false });
 
-        if (commentsError) {
-          console.error("Error fetching comments:", commentsError);
-          setError(`Comments error: ${commentsError.message}`);
+        if (error) {
+          console.error("Error fetching comments:", error);
+          setError("Failed to load comments");
           return;
         }
 
-
-        if (!commentsData || commentsData.length === 0) {
-          setComments([]);
-          return;
-        }
-
-        // Step 2: Get user profiles for each comment
-        const userIds = [...new Set(commentsData.map(comment => comment.user_id))];
-
-        const { data: profilesData, error: profilesError } = await supabase
-          .from("profiles")
-          .select("id, username, avatar_url")
-          .in("id", userIds);
-
-        if (profilesError) {
-          console.warn("Error fetching profiles:", profilesError);
-          // Still show comments even without usernames
-          setComments(commentsData.map(comment => ({
-            ...comment,
-            username: "Anonymous",
-            avatar_url: ""
-          })));
-          return;
-        }
-
-
-        // Step 3: Merge comments with user data
-        const userMap = new Map(
-          (profilesData || []).map(profile => [profile.id, profile])
-        );
-
-        const enrichedComments = commentsData.map(comment => ({
-          ...comment,
-          username: userMap.get(comment.user_id)?.username || "Anonymous",
-          avatar_url: userMap.get(comment.user_id)?.avatar_url || ""
-        }));
-
-        setComments(enrichedComments);
-
+        setComments(data || []);
       } catch (error) {
-        console.error("Unexpected error fetching comments:", error);
+        console.error("Unexpected error:", error);
         setError("Unexpected error loading comments");
       } finally {
         setLoading(false);
       }
     };
 
-    if (snippetId) {
-      fetchComments();
-    }
-  }, [snippetId, refreshTrigger]);
+    fetchComments();
+
+    // Set up real-time subscription
+    const channel = supabase
+      .channel(`comments_${snippetId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'comments',
+          filter: `snippet_id=eq.${snippetId}`
+        },
+        async (payload) => {
+          // Fetch the complete comment with profile data
+          const { data: commentData } = await supabase
+            .from('comments')
+            .select(`
+              *,
+              profiles:user_id (
+                username,
+                avatar_url
+              )
+            `)
+            .eq('id', (payload.new as any).id)
+            .single();
+
+          if (commentData) {
+            setComments(current => [commentData, ...current]);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [snippetId]);
 
   const formatDate = (dateString: string) => {
     try {
@@ -130,12 +133,6 @@ export default function CommentsList({ snippetId, refreshTrigger }: Props) {
         <div>
           <p className="font-medium">Error loading comments</p>
           <p className="text-sm mt-1">{error}</p>
-          <button 
-            onClick={() => window.location.reload()} 
-            className="text-sm underline mt-2 hover:no-underline"
-          >
-            Try refreshing the page
-          </button>
         </div>
       </div>
     );
@@ -164,31 +161,25 @@ export default function CommentsList({ snippetId, refreshTrigger }: Props) {
               className="bg-brand-secondary border border-textSecondary rounded-lg p-4 hover:border-lightGreen/30 transition-colors"
             >
               <div className="flex items-start gap-3">
-                {/* Avatar */}
                 <Avatar
-                  src={comment.avatar_url}
-                  alt={comment.username || "Anonymous"}
+                  src={comment.profiles?.avatar_url}
+                  alt={comment.profiles?.username || "Anonymous"}
                   size={36}
-                  fallbackText={comment.username}
+                  fallbackText={comment.profiles?.username}
                   className="flex-shrink-0"
                 />
                 
-                {/* Comment Content */}
                 <div className="flex-1 min-w-0">
-                  {/* Header */}
                   <div className="flex items-center gap-2 mb-2">
                     <span className="font-medium text-text">
-                      {comment.username || "Anonymous"}
+                      {comment.profiles?.username || "Anonymous"}
                     </span>
-                    <span className="text-xs text-textSecondary">
-                      •
-                    </span>
+                    <span className="text-xs text-textSecondary">•</span>
                     <time className="text-xs text-textSecondary">
                       {formatDate(comment.created_at)}
                     </time>
                   </div>
                   
-                  {/* Content */}
                   <div className="text-text leading-relaxed">
                     <p className="whitespace-pre-wrap break-words">
                       {comment.content}
