@@ -9,7 +9,7 @@ import EnhancedSearchBar from "../components/EnhancedSearchBar";
 import ClientSortFilters from "../components/ClientSortFilters";
 
 export const dynamic = "force-dynamic";
-export const revalidate = 60; // Cache for 1 minute
+export const revalidate = 60;
 
 interface SnippetsPageProps {
   searchParams: Promise<SearchParams>;
@@ -107,6 +107,8 @@ async function SnippetsContent({ searchParams }: SnippetsPageProps) {
         created_at,
         rating,
         ratings_count,
+        code,
+        user_id,
         profiles:user_id (
           username,
           avatar_url
@@ -132,7 +134,7 @@ async function SnippetsContent({ searchParams }: SnippetsPageProps) {
         queryBuilder = queryBuilder.order("created_at", { ascending: true });
         break;
       case "popular":
-        queryBuilder = queryBuilder.order("rating", { ascending: false, nullsLast: true });
+        queryBuilder = queryBuilder.order("rating", { ascending: false });
         break;
       case "newest":
       default:
@@ -152,10 +154,19 @@ async function SnippetsContent({ searchParams }: SnippetsPageProps) {
       return <SnippetsError message="Failed to load snippets. Please try again." />;
     }
 
-    // Transform data
+    // Transform data safely
     const transformedSnippets: Snippet[] =
-      (snippets as SnippetWithAuthor[])?.map((snippet) => ({
-        ...snippet,
+      snippets?.map((snippet: any) => ({
+        id: snippet.id,
+        title: snippet.title,
+        description: snippet.description,
+        code: snippet.code,
+        language: snippet.language,
+        tags: snippet.tags || [],
+        user_id: snippet.user_id,
+        created_at: snippet.created_at,
+        rating: snippet.rating,
+        ratings_count: snippet.ratings_count,
         author: snippet.profiles
           ? {
               username: snippet.profiles.username,

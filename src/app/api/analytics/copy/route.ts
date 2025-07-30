@@ -1,4 +1,3 @@
-// src/app/api/analytics/copy/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
@@ -10,6 +9,16 @@ interface CopyEvent {
   textLength: number;
   userAgent?: string;
   country?: string;
+}
+
+// Extend NextRequest to include Vercel-specific properties
+interface VercelNextRequest extends NextRequest {
+  geo?: {
+    country?: string;
+    region?: string;
+    city?: string;
+  };
+  ip?: string;
 }
 
 export async function POST(request: NextRequest) {
@@ -40,10 +49,11 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Enrich with request metadata
+    // Get request metadata (Vercel-specific properties)
+    const vercelRequest = request as VercelNextRequest;
     const userAgent = request.headers.get('user-agent') || 'Unknown';
-    const country = request.geo?.country || 'Unknown';
-    const ip = request.ip || 'Unknown';
+    const country = vercelRequest.geo?.country || 'Unknown';
+    const ip = vercelRequest.ip || request.headers.get('x-forwarded-for') || 'Unknown';
 
     // Store analytics event (fire and forget)
     supabase
@@ -56,7 +66,7 @@ export async function POST(request: NextRequest) {
           textLength,
           userAgent,
           country,
-          ip: ip.slice(0, -1) + 'x', // Anonymize last IP octet
+          ip: typeof ip === 'string' ? ip.slice(0, -1) + 'x' : 'Unknown', // Anonymize last IP octet
           timestamp,
         },
         created_at: new Date().toISOString(),
