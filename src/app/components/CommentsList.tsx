@@ -31,7 +31,6 @@ export default function CommentsList({ snippetId, refreshTrigger }: Props) {
         setLoading(true);
         setError(null);
 
-
         // Step 1: Get comments
         const { data: commentsData, error: commentsError } = await supabase
           .from("comments")
@@ -41,10 +40,9 @@ export default function CommentsList({ snippetId, refreshTrigger }: Props) {
 
         if (commentsError) {
           console.error("Error fetching comments:", commentsError);
-          setError(`Comments error: ${commentsError.message}`);
+          setError(`Failed to load comments: ${commentsError.message}`);
           return;
         }
-
 
         if (!commentsData || commentsData.length === 0) {
           setComments([]);
@@ -69,7 +67,6 @@ export default function CommentsList({ snippetId, refreshTrigger }: Props) {
           })));
           return;
         }
-
 
         // Step 3: Merge comments with user data
         const userMap = new Map(

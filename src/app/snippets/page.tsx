@@ -1,15 +1,15 @@
 import { supabasePublic } from "@/lib/supabase";
 import SnippetCard from "@/app/components/SnippetCard";
-import TabsFilter from "@/app/components/TabsFilter";
 import { SnippetListSkeleton } from "@/app/components/LoadingSkeletons";
 import { Suspense } from "react";
-import { AlertCircle, Search, Plus } from "lucide-react";
+import { AlertCircle, Plus } from "lucide-react";
 import Link from "next/link";
 import type { Snippet, SearchParams } from "@/types";
 import EnhancedSearchBar from "../components/EnhancedSearchBar";
+import ClientSortFilters from "../components/ClientSortFilters";
 
 export const dynamic = "force-dynamic";
-export const revalidate = 300; // Revalidate every 5 minutes
+export const revalidate = 60; // Cache for 1 minute
 
 interface SnippetsPageProps {
   searchParams: Promise<SearchParams>;
@@ -22,7 +22,7 @@ interface SnippetWithAuthor extends Snippet {
   };
 }
 
-// Loading component for suspense
+// Loading component
 function SnippetsLoading() {
   return (
     <section className="space-y-6">
@@ -30,90 +30,44 @@ function SnippetsLoading() {
         <div className="h-8 w-48 bg-textSecondary/20 rounded animate-pulse"></div>
         <div className="h-6 w-32 bg-textSecondary/20 rounded animate-pulse"></div>
       </div>
-      <div className="h-10 w-full bg-textSecondary/20 rounded animate-pulse"></div>
+      <div className="h-12 w-full bg-textSecondary/20 rounded animate-pulse"></div>
       <SnippetListSkeleton count={8} />
     </section>
   );
 }
 
 // Error component
-function SnippetsError({
-  message,
-  retry,
-  type = "error",
-}: {
-  message: string;
-  retry?: () => void;
-  type?: "error" | "network" | "permission";
-}) {
-  const getIcon = () => {
-    switch (type) {
-      case "network":
-        return "🌐";
-      case "permission":
-        return "🔒";
-      default:
-        return "⚠️";
-    }
-  };
-
+function SnippetsError({ message }: { message: string }) {
   return (
     <section className="space-y-6">
       <h1 className="text-2xl font-bold">Browse Snippets</h1>
       <div className="flex flex-col items-center justify-center py-12">
-        <div className="text-6xl mb-4">{getIcon()}</div>
         <AlertCircle className="w-16 h-16 text-red-500 mb-4" />
-        <h2 className="text-lg font-semibold text-text mb-2">
-          {type === "network"
-            ? "Connection Error"
-            : type === "permission"
-            ? "Access Denied"
-            : "Error Loading Snippets"}
-        </h2>
-        <p className="text-textSecondary text-center mb-6 max-w-md">
-          {message}
-        </p>
-        {retry && (
-          <button
-            onClick={retry}
-            className="px-6 py-2 bg-lightGreen text-primary rounded-lg hover:bg-lightGreen/80 transition-colors font-medium"
-          >
-            Try Again
-          </button>
-        )}
+        <h2 className="text-lg font-semibold text-text mb-2">Error Loading Snippets</h2>
+        <p className="text-textSecondary text-center mb-6 max-w-md">{message}</p>
+        <Link
+          href="/snippets"
+          className="px-6 py-2 bg-lightGreen text-primary rounded-lg hover:bg-lightGreen/80 transition-colors font-medium"
+        >
+          Try Again
+        </Link>
       </div>
     </section>
   );
 }
 
 // Empty state component
-function EmptySnippets({
-  searchTerm,
-  hasFilters,
-  totalCount = 0,
-}: {
-  searchTerm?: string;
-  hasFilters: boolean;
-  totalCount?: number;
-}) {
+function EmptySnippets({ searchTerm, hasFilters }: { searchTerm?: string; hasFilters: boolean }) {
   return (
     <div className="flex flex-col items-center justify-center py-12">
-      <Search className="w-16 h-16 text-textSecondary mb-4" />
+      <div className="text-6xl mb-4">🔍</div>
       <h2 className="text-lg font-semibold text-text mb-2">
-        {searchTerm
-          ? `No snippets found for "${searchTerm}"`
-          : hasFilters
-          ? "No snippets match your filters"
-          : totalCount === 0
-          ? "No snippets yet"
-          : "No results"}
+        {searchTerm ? `No snippets found for "${searchTerm}"` : "No snippets match your search"}
       </h2>
       <p className="text-textSecondary text-center mb-6 max-w-md">
         {hasFilters
-          ? "Try adjusting your search criteria or filters to find more snippets."
-          : totalCount === 0
-          ? "Be the first to share a code snippet with the community!"
-          : "Start by browsing all snippets or try a different search."}
+          ? "Try adjusting your search criteria to find more snippets."
+          : "Be the first to share a code snippet with the community!"}
       </p>
       <div className="flex gap-4">
         <Link
@@ -128,7 +82,7 @@ function EmptySnippets({
             href="/snippets"
             className="px-6 py-2 border border-textSecondary text-text rounded-lg hover:bg-textSecondary/10 transition-colors"
           >
-            Clear Filters
+            Clear Search
           </Link>
         )}
       </div>
@@ -138,52 +92,37 @@ function EmptySnippets({
 
 async function SnippetsContent({ searchParams }: SnippetsPageProps) {
   const params = await searchParams;
-  const { q: query, tab, language, tag, sort = "newest", page = 1 } = params;
+  const { q: query, language, tag, sort = "newest", page = 1 } = params;
 
   try {
-    // Fetch all tags for filter component (cached)
-    const { data: allSnippetsForTags, error: tagsError } = await supabasePublic
+    // Build query with better performance
+    let queryBuilder = supabasePublic
       .from("snippets")
-      .select("tags")
-      .limit(1000); // Reasonable limit for tag extraction
-
-    if (tagsError) {
-      console.error("Error fetching tags:", tagsError);
-      return (
-        <SnippetsError
-          message="Failed to load snippet categories. Please check your connection and try again."
-          type="network"
-        />
-      );
-    }
-
-    const allTags: string[] = Array.from(
-      new Set(allSnippetsForTags?.flatMap((snippet) => snippet.tags || []))
-    ).sort();
-
-    // Get total count for empty state
-    const { count: totalCount } = await supabasePublic
-      .from("snippets")
-      .select("*", { count: "exact", head: true });
-
-    // Build query with filters and joins
-    let queryBuilder = supabasePublic.from("snippets").select(`
-        *,
+      .select(`
+        id,
+        title,
+        description,
+        language,
+        tags,
+        created_at,
+        rating,
+        ratings_count,
         profiles:user_id (
           username,
           avatar_url
         )
-      `);
+      `, { count: 'exact' });
 
     // Apply filters
-    if (tab === "Language" && language) {
+    if (language) {
       queryBuilder = queryBuilder.eq("language", language);
-    } else if (tab === "Tags" && tag) {
+    }
+    if (tag) {
       queryBuilder = queryBuilder.contains("tags", [tag]);
-    } else if (query) {
-      // Enhanced search across multiple fields
+    }
+    if (query) {
       queryBuilder = queryBuilder.or(
-        `title.ilike.%${query}%,description.ilike.%${query}%,code.ilike.%${query}%,tags.cs.{${query}}`
+        `title.ilike.%${query}%,description.ilike.%${query}%,language.ilike.%${query}%`
       );
     }
 
@@ -192,13 +131,8 @@ async function SnippetsContent({ searchParams }: SnippetsPageProps) {
       case "oldest":
         queryBuilder = queryBuilder.order("created_at", { ascending: true });
         break;
-      case "rating":
-        // Note: This would require a computed column or separate query for ratings
-        queryBuilder = queryBuilder.order("created_at", { ascending: false });
-        break;
       case "popular":
-        // Note: This would require view count or other popularity metrics
-        queryBuilder = queryBuilder.order("created_at", { ascending: false });
+        queryBuilder = queryBuilder.order("rating", { ascending: false, nullsLast: true });
         break;
       case "newest":
       default:
@@ -207,30 +141,18 @@ async function SnippetsContent({ searchParams }: SnippetsPageProps) {
     }
 
     // Apply pagination
-    const itemsPerPage = 28;
+    const itemsPerPage = 24;
     const from = (page - 1) * itemsPerPage;
     const to = from + itemsPerPage - 1;
 
-    const {
-      data: snippets,
-      error,
-      count,
-    } = await queryBuilder.range(from, to).limit(itemsPerPage);
+    const { data: snippets, error, count } = await queryBuilder.range(from, to);
 
     if (error) {
       console.error("Error fetching snippets:", error);
-      const errorType = error.message.includes("permission")
-        ? "permission"
-        : "error";
-      return (
-        <SnippetsError
-          message={`Failed to load snippets: ${error.message}`}
-          type={errorType}
-        />
-      );
+      return <SnippetsError message="Failed to load snippets. Please try again." />;
     }
 
-    // Transform data to match our Snippet type
+    // Transform data
     const transformedSnippets: Snippet[] =
       (snippets as SnippetWithAuthor[])?.map((snippet) => ({
         ...snippet,
@@ -242,23 +164,21 @@ async function SnippetsContent({ searchParams }: SnippetsPageProps) {
           : undefined,
       })) || [];
 
-    const hasFilters = !!(tab || query || language || tag);
+    const hasFilters = !!(query || language || tag);
     const totalPages = Math.ceil((count || 0) / itemsPerPage);
 
     return (
       <section className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Browse Snippets</h1>
+          <h1 className="text-3xl font-bold">Browse Snippets</h1>
           <div className="flex items-center gap-4">
             <div className="text-sm text-textSecondary">
-              {count !== null ? (
+              {count !== null && (
                 <>
                   {count.toLocaleString()} snippet{count !== 1 ? "s" : ""}
                   {hasFilters && " found"}
                 </>
-              ) : (
-                ""
               )}
             </div>
             <Link
@@ -270,21 +190,18 @@ async function SnippetsContent({ searchParams }: SnippetsPageProps) {
             </Link>
           </div>
         </div>
-        {/* Search Bar */}
-        <EnhancedSearchBar/>
 
-        {/* Filters */}
-        <TabsFilter tags={allTags} />
+        {/* Search Bar */}
+        <EnhancedSearchBar />
 
         {/* Results */}
         {!transformedSnippets || transformedSnippets.length === 0 ? (
-          <EmptySnippets
-            searchTerm={query}
-            hasFilters={hasFilters}
-            totalCount={totalCount || 0}
-          />
+          <EmptySnippets searchTerm={query} hasFilters={hasFilters} />
         ) : (
           <>
+            {/* Client-side Sort Options */}
+            <ClientSortFilters currentSort={sort} searchParams={params} />
+
             {/* Snippets Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {transformedSnippets.map((snippet) => (
@@ -335,12 +252,7 @@ async function SnippetsContent({ searchParams }: SnippetsPageProps) {
     );
   } catch (error) {
     console.error("Unexpected error:", error);
-    return (
-      <SnippetsError
-        message="An unexpected error occurred while loading snippets. Please try again later."
-        type="error"
-      />
-    );
+    return <SnippetsError message="An unexpected error occurred. Please try again later." />;
   }
 }
 
