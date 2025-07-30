@@ -1,6 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import { notFound } from "next/navigation";
-import EnhancedCodeBlock from "@/app/components/EnhancedCodeBlock";
+import CodeBlock from "@/app/components/CodeBlock";
 import StarRating from "@/app/components/StarRating";
 import CommentsSection from "@/app/components/CommentsSection";
 
@@ -119,9 +119,9 @@ return (
       )}
     </div>
 
-    {/* Enhanced Code Block */}
+    {/*Code Block */}
     <div className="not-prose mb-8">
-      <EnhancedCodeBlock 
+      <CodeBlock 
         code={snippet.code} 
         language={snippet.language}
         title={snippet.title}

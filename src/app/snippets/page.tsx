@@ -207,7 +207,7 @@ async function SnippetsContent({ searchParams }: SnippetsPageProps) {
     }
 
     // Apply pagination
-    const itemsPerPage = 20;
+    const itemsPerPage = 28;
     const from = (page - 1) * itemsPerPage;
     const to = from + itemsPerPage - 1;
 
