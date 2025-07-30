@@ -1,4 +1,3 @@
-// middleware.ts (place in root directory, same level as package.json)
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
