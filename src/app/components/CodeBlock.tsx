@@ -1,8 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
+import dynamic from "next/dynamic";
 import {
   Copy,
   Check,
@@ -19,11 +18,28 @@ import {
   Sparkles,
   Terminal,
   FileText,
+  Loader2,
 } from "lucide-react";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
+
+// Dynamically import SyntaxHighlighter to avoid SSR issues
+const SyntaxHighlighter = dynamic(
+  () => import("react-syntax-highlighter").then((mod) => mod.Prism),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="p-4 bg-gray-800 rounded flex items-center justify-center">
+        <Loader2 className="w-6 h-6 animate-spin text-lightGreen" />
+        <span className="ml-2 text-gray-300">
+          Loading syntax highlighter...
+        </span>
+      </div>
+    ),
+  }
+);
 
 interface EnhancedCodeBlockProps {
   code: string;
@@ -60,39 +76,68 @@ export default function EnhancedCodeBlock({
   const [showAIFeatures, setShowAIFeatures] = useState(false);
   const [explanation, setExplanation] = useState<string>("");
   const [isExplaining, setIsExplaining] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [highlighterStyle, setHighlighterStyle] = useState<Record<
+    string,
+    React.CSSProperties
+  > | null>(null);
   const codeRef = useRef<HTMLDivElement>(null);
+
+  // Handle client-side mounting and load syntax highlighter style
+  useEffect(() => {
+    setMounted(true);
+
+    // Load the syntax highlighter style on client side
+    import("react-syntax-highlighter/dist/esm/styles/prism")
+      .then((mod) => {
+        setHighlighterStyle(mod.vscDarkPlus);
+      })
+      .catch(() => {
+        console.warn("Failed to load syntax highlighter style");
+      });
+  }, []);
 
   const checkFavoriteStatus = useCallback(async () => {
     if (!user || !snippetId) return;
 
-    const { data } = await supabase
-      .from("favorites")
-      .select("id")
-      .eq("user_id", user.id)
-      .eq("snippet_id", snippetId)
-      .single();
+    try {
+      const { data } = await supabase
+        .from("favorites")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("snippet_id", snippetId)
+        .single();
 
-    setIsFavorited(!!data);
+      setIsFavorited(!!data);
+    } catch (error) {
+      // Ignore errors for favorites check
+      console.warn("Error checking favorite status:", error);
+    }
   }, [user, snippetId]);
 
   const getFavoriteCount = useCallback(async () => {
     if (!snippetId) return;
 
-    const { count } = await supabase
-      .from("favorites")
-      .select("*", { count: "exact", head: true })
-      .eq("snippet_id", snippetId);
+    try {
+      const { count } = await supabase
+        .from("favorites")
+        .select("*", { count: "exact", head: true })
+        .eq("snippet_id", snippetId);
 
-    setFavoriteCount(count || 0);
+      setFavoriteCount(count || 0);
+    } catch (error) {
+      // Ignore errors for count
+      console.warn("Error getting favorite count:", error);
+    }
   }, [snippetId]);
 
   // Check if user has favorited this snippet
   useEffect(() => {
-    if (user && snippetId) {
+    if (mounted && user && snippetId) {
       checkFavoriteStatus();
       getFavoriteCount();
     }
-  }, [user, snippetId, checkFavoriteStatus, getFavoriteCount]);
+  }, [mounted, user, snippetId, checkFavoriteStatus, getFavoriteCount]);
 
   const handleCopy = async () => {
     const success = await copyToClipboard(code, {
@@ -177,7 +222,14 @@ export default function EnhancedCodeBlock({
   };
 
   const handleShare = async () => {
-    if (!snippetId) return;
+    if (!snippetId) {
+      // If no snippetId, just copy the code
+      await copyToClipboard(code, {
+        customMessage: "Code copied! 📋",
+        trackAnalytics: false,
+      });
+      return;
+    }
 
     const shareUrl = `${window.location.origin}/snippets/${snippetId}`;
 
@@ -265,6 +317,27 @@ export default function EnhancedCodeBlock({
     language.toLowerCase()
   );
 
+  // Don't render complex features until mounted
+  if (!mounted) {
+    return (
+      <div
+        className={`relative bg-gray-900 rounded-lg overflow-hidden ${className} border border-gray-700`}
+      >
+        <div className="p-4">
+          <div className="flex items-center gap-2 mb-4">
+            <Code className="w-4 h-4 text-lightGreen" />
+            <span className="px-2 py-1 bg-lightGreen/20 text-lightGreen rounded text-xs font-medium">
+              {formatLanguageName(language)}
+            </span>
+          </div>
+          <pre className="text-gray-300 text-sm font-mono whitespace-pre-wrap overflow-auto">
+            {code}
+          </pre>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className={`relative bg-gray-900 rounded-lg overflow-hidden group ${className} border border-gray-700 hover:border-lightGreen/50 transition-all duration-300`}
@@ -336,15 +409,13 @@ export default function EnhancedCodeBlock({
             )}
 
             {/* Share Button */}
-            {isInteractive && snippetId && (
-              <button
-                onClick={handleShare}
-                className="p-2 text-gray-400 hover:text-white transition-colors rounded"
-                title="Share snippet"
-              >
-                <Share2 className="w-4 h-4" />
-              </button>
-            )}
+            <button
+              onClick={handleShare}
+              className="p-2 text-gray-400 hover:text-white transition-colors rounded"
+              title="Share snippet"
+            >
+              <Share2 className="w-4 h-4" />
+            </button>
 
             {/* Raw/Highlighted Toggle */}
             <button
@@ -472,14 +543,14 @@ export default function EnhancedCodeBlock({
           overflow: isExpanded ? "visible" : "auto",
         }}
       >
-        {showRaw ? (
+        {showRaw || !highlighterStyle ? (
           <pre className="p-4 text-gray-300 text-sm font-mono whitespace-pre-wrap overflow-auto">
             {code}
           </pre>
         ) : (
           <SyntaxHighlighter
             language={language.toLowerCase()}
-            style={vscDarkPlus}
+            style={highlighterStyle}
             showLineNumbers={showLineNumbers}
             wrapLines={true}
             customStyle={{

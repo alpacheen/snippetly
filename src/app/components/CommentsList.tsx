@@ -24,12 +24,10 @@ type SupabaseCommentRaw = {
   user_id: string;
   content: string;
   created_at: string;
-  profiles:
-    | {
-        username: string;
-        avatar_url?: string;
-      }[]
-    | null;
+  profiles: {
+    username: string;
+    avatar_url?: string;
+  }[] | null;
 };
 
 type Props = {
@@ -48,22 +46,20 @@ export default function CommentsList({ snippetId, refreshTrigger }: Props) {
         setLoading(true);
         setError(null);
 
-        // Proper Supabase query
+        // Simplified Supabase query without the ! syntax
         const { data: commentsData, error: commentsError } = await supabase
           .from("comments")
-          .select(
-            `
+          .select(`
             id,
             snippet_id,
             user_id,
             content,
             created_at,
-            profiles!user_id (
+            profiles (
               username,
               avatar_url
             )
-          `
-          )
+          `)
           .eq("snippet_id", snippetId)
           .order("created_at", { ascending: false })
           .limit(50);

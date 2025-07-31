@@ -5,6 +5,7 @@ import StarRating from "@/app/components/StarRating";
 import CommentsSection from "@/app/components/CommentsSection";
 
 export const dynamic = "force-dynamic";
+
 function getFileExtension(language: string): string {
   const extensions: Record<string, string> = {
     'javascript': 'js',
@@ -68,20 +69,61 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   }
 }
 
+// Type for our processed snippet
+interface ProcessedSnippet {
+  id: string;
+  title: string;
+  description: string;
+  code: string;
+  language: string;
+  tags: string[];
+  user_id: string;
+  created_at: string;
+  rating?: number;
+  ratings_count?: number;
+  author?: {
+    username: string;
+    avatar_url?: string;
+  };
+}
 
 export default async function SnippetDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
   try{
-    const { data: snippet, error } = await supabase
+    const { data: rawSnippet, error } = await supabase
     .from("snippets")
-    .select("*")
+    .select(`
+      id,
+      title,
+      description,
+      code,
+      language,
+      tags,
+      user_id,
+      created_at,
+      rating,
+      ratings_count,
+      profiles (
+        username,
+        avatar_url
+      )
+    `)
     .eq("id", id)
     .single();
 
-  if (error || !snippet) {
+  if (error || !rawSnippet) {
+    console.error("Error fetching snippet:", error);
     notFound();
   }
+
+  // Process the raw data to handle profiles array
+  const snippet: ProcessedSnippet = {
+    ...rawSnippet,
+    author: rawSnippet.profiles && Array.isArray(rawSnippet.profiles) && rawSnippet.profiles.length > 0 
+      ? rawSnippet.profiles[0] 
+      : undefined
+  };
 
 return (
   <article className="prose lg:prose-xl max-w-4xl mx-auto py-8">
@@ -98,8 +140,8 @@ return (
         <span className="px-2 py-1 bg-darkGreen text-text rounded text-xs">
           {snippet.language}
         </span>
-        {snippet.profiles?.username && (
-          <span>by {snippet.profiles.username}</span>
+        {snippet.author?.username && (
+          <span>by {snippet.author.username}</span>
         )}
         <span>{new Date(snippet.created_at).toLocaleDateString()}</span>
       </div>
@@ -126,6 +168,7 @@ return (
         language={snippet.language}
         title={snippet.title}
         fileName={`${snippet.title.toLowerCase().replace(/\s+/g, '-')}.${getFileExtension(snippet.language)}`}
+        snippetId={snippet.id}
         showLineNumbers={true}
       />
     </div>

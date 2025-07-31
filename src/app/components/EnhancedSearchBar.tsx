@@ -71,7 +71,7 @@ export default function EnhancedSearchBar() {
         // Fixed: Proper Supabase query syntax with correct text search
         const searchPattern = `%${debouncedQuery}%`;
 
-        // Get matching snippets
+        // Get matching snippets - simplified query without joins for search
         const { data: snippets } = await supabase
           .from("snippets")
           .select("id, title, language")
@@ -114,6 +114,8 @@ export default function EnhancedSearchBar() {
       } catch (error) {
         if (error instanceof Error && error.name !== "AbortError") {
           console.error("Error fetching suggestions:", error);
+          // Fallback to popular suggestions on error
+          setSuggestions(popularSuggestions);
         }
       } finally {
         setLoading(false);

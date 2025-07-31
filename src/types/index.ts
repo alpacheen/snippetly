@@ -95,20 +95,22 @@ export interface PaginatedResponse<T> {
   hasMore: boolean;
 }
 
+// Fixed SearchParams to be fully compatible with Next.js
 export interface SearchParams {
-  q?: string;
-  tab?: "All" | "Language" | "Tags";
-  language?: string;
-  tag?: string;
-  page?: number | string;
-  sort?: "newest" | "oldest" | "rating" | "popular";
+  [key: string]: string | string[] | undefined;
+  q?: string | string[];
+  tab?: string | string[];
+  language?: string | string[];
+  tag?: string | string[];
+  page?: string | string[];
+  sort?: string | string[];
 }
 
 export interface FilterOptions {
   languages: string[];
   tags: string[];
   sortOptions: Array<{
-    value: SearchParams["sort"];
+    value: string;
     label: string;
   }>;
 }

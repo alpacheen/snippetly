@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 
 interface ClientSortFiltersProps {
   currentSort: string;
-  searchParams: Record<string, string | number>;
+  searchParams: Record<string, string | string[] | undefined>;
 }
 
 export default function ClientSortFilters({
@@ -25,7 +25,11 @@ export default function ClientSortFilters({
     // Preserve existing search params
     Object.entries(searchParams).forEach(([key, value]) => {
       if (key !== "sort" && value) {
-        params.set(key, value.toString());
+        // Handle both string and string[] values
+        const stringValue = Array.isArray(value) ? value[0] : value;
+        if (stringValue) {
+          params.set(key, stringValue);
+        }
       }
     });
 
