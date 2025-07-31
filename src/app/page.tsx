@@ -1,8 +1,18 @@
 "use client";
-import { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { Code, Search, Users, Star, ArrowRight, Play, Sparkles, Terminal, Zap } from 'lucide-react';
-import { Suspense } from 'react';
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import {
+  Code,
+  Search,
+  Users,
+  Star,
+  ArrowRight,
+  Play,
+  Sparkles,
+  Terminal,
+  Zap,
+} from "lucide-react";
+import { Suspense } from "react";
 
 // Lazy load heavy components
 const CodeExampleCarousel = () => {
@@ -15,16 +25,16 @@ const CodeExampleCarousel = () => {
   const response = await fetch(\`/api/users/\${id}\`);
   return response.json();
 };`,
-      description: "Clean async/await pattern"
+      description: "Clean async/await pattern",
     },
     {
-      language: "Python", 
+      language: "Python",
       code: `def quicksort(arr):
     if len(arr) <= 1:
         return arr
     pivot = arr[len(arr) // 2]
     return quicksort([x for x in arr if x < pivot])`,
-      description: "Elegant quicksort algorithm"
+      description: "Elegant quicksort algorithm",
     },
     {
       language: "React",
@@ -33,16 +43,16 @@ const CodeExampleCarousel = () => {
   const increment = () => setCount(c => c + 1);
   return { count, increment };
 };`,
-      description: "Custom React hook"
-    }
+      description: "Custom React hook",
+    },
   ];
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setCurrentExample(prev => (prev + 1) % codeExamples.length);
+      setCurrentExample((prev) => (prev + 1) % codeExamples.length);
     }, 3000);
     return () => clearInterval(interval);
-  }, []);
+  }, [codeExamples.length]);
 
   return (
     <div className="relative bg-gray-900 rounded-2xl border border-gray-700 shadow-2xl overflow-hidden">
@@ -65,7 +75,7 @@ const CodeExampleCarousel = () => {
             {codeExamples[currentExample].language}
           </span>
         </div>
-        
+
         <pre className="text-sm text-gray-300 overflow-hidden">
           <code className="block whitespace-pre-wrap">
             {codeExamples[currentExample].code}
@@ -76,10 +86,14 @@ const CodeExampleCarousel = () => {
         <div className="mt-4 p-3 bg-purple-900/30 rounded border border-purple-500/30">
           <div className="flex items-center gap-2 mb-2">
             <Sparkles className="w-4 h-4 text-purple-400" />
-            <span className="text-xs text-purple-300 font-medium">AI Assistant</span>
+            <span className="text-xs text-purple-300 font-medium">
+              AI Assistant
+            </span>
           </div>
           <p className="text-xs text-purple-100">
-            This code demonstrates modern {codeExamples[currentExample].language} patterns with clean, readable syntax.
+            This code demonstrates modern{" "}
+            {codeExamples[currentExample].language} patterns with clean,
+            readable syntax.
           </p>
         </div>
       </div>
@@ -103,7 +117,7 @@ export default function LandingPage() {
     { label: "Code Snippets", value: "10K+", icon: Code },
     { label: "Active Developers", value: "2.5K+", icon: Users },
     { label: "Languages", value: "20+", icon: Terminal },
-    { label: "Average Rating", value: "4.8", icon: Star }
+    { label: "Average Rating", value: "4.8", icon: Star },
   ];
 
   if (!mounted) return null;
@@ -125,20 +139,25 @@ export default function LandingPage() {
               <Sparkles className="w-4 h-4" />
               AI-Powered Code Discovery
             </div>
-            
+
             <h1 className="text-5xl lg:text-7xl font-extrabold mb-6">
               Your
               <span className="bg-lightGreen bg-clip-text text-transparent">
-                {" "}AI-powered{" "}
+                {" "}
+                AI-powered{" "}
               </span>
               Snippet Brain
             </h1>
-            
+
             <p className="text-xl lg:text-2xl text-textSecondary mb-8 max-w-2xl">
-              Discover, save, and share code snippets with AI-powered explanations. 
-              <span className="text-lightGreen font-semibold"> Like Spotify, but for code.</span>
+              Discover, save, and share code snippets with AI-powered
+              explanations.
+              <span className="text-lightGreen font-semibold">
+                {" "}
+                Like Spotify, but for code.
+              </span>
             </p>
-            
+
             <div className="flex flex-col sm:flex-row gap-4 mb-8">
               <Link
                 href="/snippets"
@@ -148,7 +167,7 @@ export default function LandingPage() {
                 Browse Snippets
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </Link>
-              
+
               <Link
                 href="/snippets/create"
                 className="px-8 py-4 border border-lightGreen text-lightGreen font-bold rounded-lg hover:bg-lightGreen hover:text-gray-900 transition-all duration-300 flex items-center justify-center gap-2"
@@ -165,7 +184,9 @@ export default function LandingPage() {
                   <div className="flex items-center justify-center mb-2">
                     <stat.icon className="w-6 h-6 text-lightGreen" />
                   </div>
-                  <div className="text-2xl font-bold text-text">{stat.value}</div>
+                  <div className="text-2xl font-bold text-text">
+                    {stat.value}
+                  </div>
                   <div className="text-sm text-textSecondary">{stat.label}</div>
                 </div>
               ))}
@@ -174,7 +195,11 @@ export default function LandingPage() {
 
           {/* Right Content - Code Preview */}
           <div className="relative">
-            <Suspense fallback={<div className="h-96 bg-gray-800 rounded-2xl animate-pulse"></div>}>
+            <Suspense
+              fallback={
+                <div className="h-96 bg-gray-800 rounded-2xl animate-pulse"></div>
+              }
+            >
               <CodeExampleCarousel />
             </Suspense>
           </div>
@@ -185,9 +210,11 @@ export default function LandingPage() {
       <section className="py-20 px-6 bg-gray-900/50">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold mb-4">Why Developers Love Snippetly</h2>
+            <h2 className="text-4xl font-bold mb-4">
+              Why Developers Love Snippetly
+            </h2>
             <p className="text-xl text-textSecondary">
-              More than just a snippet manager - it's your coding companion
+              More than just a snippet manager - it&apos;s your coding companion
             </p>
           </div>
 
@@ -196,21 +223,24 @@ export default function LandingPage() {
               {
                 icon: Search,
                 title: "AI-Powered Search",
-                description: "Find exactly what you need with intelligent search that understands context and intent.",
-                color: "blue"
+                description:
+                  "Find exactly what you need with intelligent search that understands context and intent.",
+                color: "blue",
               },
               {
                 icon: Sparkles,
-                title: "Smart Explanations", 
-                description: "Get instant AI explanations for any code snippet to understand how it works.",
-                color: "purple"
+                title: "Smart Explanations",
+                description:
+                  "Get instant AI explanations for any code snippet to understand how it works.",
+                color: "purple",
               },
               {
                 icon: Users,
                 title: "Community-Driven",
-                description: "Learn from the best developers and share your knowledge with the community.",
-                color: "green"
-              }
+                description:
+                  "Learn from the best developers and share your knowledge with the community.",
+                color: "green",
+              },
             ].map((feature) => (
               <div
                 key={feature.title}
@@ -220,7 +250,9 @@ export default function LandingPage() {
                   <feature.icon className="w-8 h-8 text-lightGreen" />
                 </div>
                 <h3 className="text-xl font-bold mb-4">{feature.title}</h3>
-                <p className="text-textSecondary leading-relaxed">{feature.description}</p>
+                <p className="text-textSecondary leading-relaxed">
+                  {feature.description}
+                </p>
               </div>
             ))}
           </div>
@@ -234,9 +266,10 @@ export default function LandingPage() {
             Ready to supercharge your coding?
           </h2>
           <p className="text-xl text-textSecondary mb-8">
-            Join thousands of developers who've made Snippetly their go-to coding companion.
+            Join thousands of developers who&apos;ve made Snippetly their go-to
+            coding companion.
           </p>
-          
+
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               href="/login"
@@ -245,7 +278,7 @@ export default function LandingPage() {
               Get Started Free
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </Link>
-            
+
             <Link
               href="/snippets"
               className="px-8 py-4 border border-lightGreen text-lightGreen font-bold rounded-lg hover:bg-lightGreen hover:text-gray-900 transition-all duration-300"

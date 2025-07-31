@@ -8,7 +8,13 @@ import ErrorBoundary from "@/app/components/ErrorBoundary";
 import { AlertTriangle, RefreshCw, Home } from "lucide-react";
 
 // Custom error fallback for the main app
-function AppErrorFallback({ error, retry }: { error?: Error; retry: () => void }) {
+function AppErrorFallback({
+  error,
+  retry,
+}: {
+  error?: Error;
+  retry: () => void;
+}) {
   return (
     <div className="min-h-screen bg-primary flex flex-col">
       <header className="px-6 py-4 border-b border-textSecondary">
@@ -16,30 +22,33 @@ function AppErrorFallback({ error, retry }: { error?: Error; retry: () => void }
           <h1 className="text-xl font-bold text-text">Snippetly</h1>
         </div>
       </header>
-      
+
       <main className="flex-grow flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-brand-secondary rounded-lg p-6 text-center">
           <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <AlertTriangle className="w-8 h-8 text-red-600" />
           </div>
-          
+
           <h1 className="text-xl font-bold text-text mb-2">
             Something went wrong
           </h1>
-          
+
           <p className="text-textSecondary mb-6">
-            We're sorry, but something unexpected happened. Please try refreshing the page.
+            We&apos;re sorry, but something unexpected happened. Please try
+            refreshing the page.
           </p>
-          
-          {process.env.NODE_ENV === 'development' && error && (
+
+          {process.env.NODE_ENV === "development" && error && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded text-left">
-              <p className="text-sm font-medium text-red-800 mb-2">Error Details:</p>
+              <p className="text-sm font-medium text-red-800 mb-2">
+                Error Details:
+              </p>
               <p className="text-xs text-red-600 font-mono break-all">
                 {error.message}
               </p>
             </div>
           )}
-          
+
           <div className="space-y-3">
             <button
               onClick={retry}
@@ -48,9 +57,9 @@ function AppErrorFallback({ error, retry }: { error?: Error; retry: () => void }
               <RefreshCw className="w-4 h-4" />
               Try Again
             </button>
-            
+
             <button
-              onClick={() => window.location.href = '/'}
+              onClick={() => (window.location.href = "/")}
               className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-textSecondary text-text rounded-lg hover:bg-textSecondary/10 transition-colors"
             >
               <Home className="w-4 h-4" />
@@ -59,7 +68,7 @@ function AppErrorFallback({ error, retry }: { error?: Error; retry: () => void }
           </div>
         </div>
       </main>
-      
+
       <footer className="px-6 py-4 border-t border-textSecondary text-center text-textSecondary">
         &copy; {new Date().getFullYear()} Snippetly. All rights reserved.
       </footer>
@@ -74,14 +83,14 @@ interface ClientLayoutProps {
 export default function ClientLayout({ children }: ClientLayoutProps) {
   return (
     <ErrorBoundary fallback={AppErrorFallback}>
-      <Toaster 
-        richColors 
+      <Toaster
+        richColors
         position="top-right"
         toastOptions={{
           style: {
-            background: 'var(--color-primary)',
-            color: 'var(--color-text)',
-            border: '1px solid var(--color-textSecondary)',
+            background: "var(--color-primary)",
+            color: "var(--color-text)",
+            border: "1px solid var(--color-textSecondary)",
           },
         }}
       />
@@ -90,9 +99,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
           <NavBar />
         </ErrorBoundary>
         <main className="flex-grow container mx-auto px-4 py-6">
-          <ErrorBoundary>
-            {children}
-          </ErrorBoundary>
+          <ErrorBoundary>{children}</ErrorBoundary>
         </main>
         <footer className="px-6 py-4 border-t border-textSecondary text-center text-textSecondary">
           &copy; {new Date().getFullYear()} Snippetly. All rights reserved.

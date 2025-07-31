@@ -11,8 +11,25 @@ type Comment = {
   user_id: string;
   content: string;
   created_at: string;
-  username?: string;
-  avatar_url?: string;
+  profiles: {
+    username: string;
+    avatar_url?: string;
+  } | null;
+};
+
+// This matches what Supabase actually returns (profiles as array)
+type SupabaseCommentRaw = {
+  id: string;
+  snippet_id: string;
+  user_id: string;
+  content: string;
+  created_at: string;
+  profiles:
+    | {
+        username: string;
+        avatar_url?: string;
+      }[]
+    | null;
 };
 
 type Props = {
@@ -31,12 +48,25 @@ export default function CommentsList({ snippetId, refreshTrigger }: Props) {
         setLoading(true);
         setError(null);
 
-        // Step 1: Get comments
+        // Proper Supabase query
         const { data: commentsData, error: commentsError } = await supabase
           .from("comments")
-          .select("*")
+          .select(
+            `
+            id,
+            snippet_id,
+            user_id,
+            content,
+            created_at,
+            profiles!user_id (
+              username,
+              avatar_url
+            )
+          `
+          )
           .eq("snippet_id", snippetId)
-          .order("created_at", { ascending: false });
+          .order("created_at", { ascending: false })
+          .limit(50);
 
         if (commentsError) {
           console.error("Error fetching comments:", commentsError);
@@ -44,43 +74,22 @@ export default function CommentsList({ snippetId, refreshTrigger }: Props) {
           return;
         }
 
-        if (!commentsData || commentsData.length === 0) {
-          setComments([]);
-          return;
-        }
+        // Transform Supabase data to match our Comment type
+        const transformedComments: Comment[] =
+          (commentsData as SupabaseCommentRaw[])?.map((comment) => ({
+            id: comment.id,
+            snippet_id: comment.snippet_id,
+            user_id: comment.user_id,
+            content: comment.content,
+            created_at: comment.created_at,
+            // Handle profiles array - take first item or null
+            profiles:
+              comment.profiles && comment.profiles.length > 0
+                ? comment.profiles[0]
+                : null,
+          })) || [];
 
-        // Step 2: Get user profiles for each comment
-        const userIds = [...new Set(commentsData.map(comment => comment.user_id))];
-
-        const { data: profilesData, error: profilesError } = await supabase
-          .from("profiles")
-          .select("id, username, avatar_url")
-          .in("id", userIds);
-
-        if (profilesError) {
-          console.warn("Error fetching profiles:", profilesError);
-          // Still show comments even without usernames
-          setComments(commentsData.map(comment => ({
-            ...comment,
-            username: "Anonymous",
-            avatar_url: ""
-          })));
-          return;
-        }
-
-        // Step 3: Merge comments with user data
-        const userMap = new Map(
-          (profilesData || []).map(profile => [profile.id, profile])
-        );
-
-        const enrichedComments = commentsData.map(comment => ({
-          ...comment,
-          username: userMap.get(comment.user_id)?.username || "Anonymous",
-          avatar_url: userMap.get(comment.user_id)?.avatar_url || ""
-        }));
-
-        setComments(enrichedComments);
-
+        setComments(transformedComments);
       } catch (error) {
         console.error("Unexpected error fetching comments:", error);
         setError("Unexpected error loading comments");
@@ -98,15 +107,19 @@ export default function CommentsList({ snippetId, refreshTrigger }: Props) {
     try {
       const date = new Date(dateString);
       const now = new Date();
-      const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
-      
+      const diffInMinutes = Math.floor(
+        (now.getTime() - date.getTime()) / (1000 * 60)
+      );
+
       if (diffInMinutes < 1) return "Just now";
       if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
-      if (diffInMinutes < 24 * 60) return `${Math.floor(diffInMinutes / 60)}h ago`;
-      if (diffInMinutes < 7 * 24 * 60) return `${Math.floor(diffInMinutes / (24 * 60))}d ago`;
-      
+      if (diffInMinutes < 24 * 60)
+        return `${Math.floor(diffInMinutes / 60)}h ago`;
+      if (diffInMinutes < 7 * 24 * 60)
+        return `${Math.floor(diffInMinutes / (24 * 60))}d ago`;
+
       return date.toLocaleDateString();
-    } catch (error) {
+    } catch {
       return "Unknown date";
     }
   };
@@ -127,8 +140,8 @@ export default function CommentsList({ snippetId, refreshTrigger }: Props) {
         <div>
           <p className="font-medium">Error loading comments</p>
           <p className="text-sm mt-1">{error}</p>
-          <button 
-            onClick={() => window.location.reload()} 
+          <button
+            onClick={() => window.location.reload()}
             className="text-sm underline mt-2 hover:no-underline"
           >
             Try refreshing the page
@@ -146,7 +159,7 @@ export default function CommentsList({ snippetId, refreshTrigger }: Props) {
           Comments ({comments.length})
         </h2>
       </div>
-      
+
       {comments.length === 0 ? (
         <div className="text-center py-12 text-textSecondary">
           <MessageCircle className="w-16 h-16 mx-auto mb-4 opacity-30" />
@@ -156,35 +169,33 @@ export default function CommentsList({ snippetId, refreshTrigger }: Props) {
       ) : (
         <div className="space-y-4">
           {comments.map((comment) => (
-            <article 
-              key={comment.id} 
+            <article
+              key={comment.id}
               className="bg-brand-secondary border border-textSecondary rounded-lg p-4 hover:border-lightGreen/30 transition-colors"
             >
               <div className="flex items-start gap-3">
                 {/* Avatar */}
                 <Avatar
-                  src={comment.avatar_url}
-                  alt={comment.username || "Anonymous"}
+                  src={comment.profiles?.avatar_url}
+                  alt={comment.profiles?.username || "Anonymous"}
                   size={36}
-                  fallbackText={comment.username}
+                  fallbackText={comment.profiles?.username}
                   className="flex-shrink-0"
                 />
-                
+
                 {/* Comment Content */}
                 <div className="flex-1 min-w-0">
                   {/* Header */}
                   <div className="flex items-center gap-2 mb-2">
                     <span className="font-medium text-text">
-                      {comment.username || "Anonymous"}
+                      {comment.profiles?.username || "Anonymous"}
                     </span>
-                    <span className="text-xs text-textSecondary">
-                      •
-                    </span>
+                    <span className="text-xs text-textSecondary">•</span>
                     <time className="text-xs text-textSecondary">
                       {formatDate(comment.created_at)}
                     </time>
                   </div>
-                  
+
                   {/* Content */}
                   <div className="text-text leading-relaxed">
                     <p className="whitespace-pre-wrap break-words">

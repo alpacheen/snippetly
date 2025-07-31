@@ -1,24 +1,23 @@
 "use client";
 
-import { memo } from 'react';
-import SnippetCard from './SnippetCard';
-import { useIntersectionObserver } from '@/hooks/useIntersectionObserver';
-import { Skeleton } from './LoadingSkeletons';
-import type { Snippet } from '@/types';
+import { memo } from "react";
+import SnippetCard from "./SnippetCard";
+import { useIntersectionObserver } from "@/hooks/useIntersectionObserver";
+import type { Snippet } from "@/types";
 
 interface LazySnippetCardProps {
   snippet: Snippet;
   className?: string;
 }
 
-const LazySnippetCard = memo(function LazySnippetCard({ 
-  snippet, 
-  className 
+const LazySnippetCard = memo(function LazySnippetCard({
+  snippet,
+  className,
 }: LazySnippetCardProps) {
   const [ref, isVisible] = useIntersectionObserver({
     threshold: 0.1,
     freezeOnceVisible: true,
-    rootMargin: '50px',
+    rootMargin: "50px",
   });
 
   return (

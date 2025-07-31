@@ -1,14 +1,14 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
-import { 
-  Copy, 
-  Check, 
-  Download, 
-  Eye, 
-  EyeOff, 
+import {
+  Copy,
+  Check,
+  Download,
+  Eye,
+  EyeOff,
   Maximize2,
   RotateCcw,
   Code,
@@ -18,7 +18,7 @@ import {
   Zap,
   Sparkles,
   Terminal,
-  FileText
+  FileText,
 } from "lucide-react";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { useAuth } from "@/lib/auth-context";
@@ -31,7 +31,6 @@ interface EnhancedCodeBlockProps {
   title?: string;
   fileName?: string;
   snippetId?: string;
-  authorId?: string;
   showLineNumbers?: boolean;
   maxHeight?: string;
   className?: string;
@@ -45,7 +44,6 @@ export default function EnhancedCodeBlock({
   title,
   fileName,
   snippetId,
-  authorId,
   showLineNumbers = true,
   maxHeight = "500px",
   className = "",
@@ -64,44 +62,44 @@ export default function EnhancedCodeBlock({
   const [isExplaining, setIsExplaining] = useState(false);
   const codeRef = useRef<HTMLDivElement>(null);
 
+  const checkFavoriteStatus = useCallback(async () => {
+    if (!user || !snippetId) return;
+
+    const { data } = await supabase
+      .from("favorites")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("snippet_id", snippetId)
+      .single();
+
+    setIsFavorited(!!data);
+  }, [user, snippetId]);
+
+  const getFavoriteCount = useCallback(async () => {
+    if (!snippetId) return;
+
+    const { count } = await supabase
+      .from("favorites")
+      .select("*", { count: "exact", head: true })
+      .eq("snippet_id", snippetId);
+
+    setFavoriteCount(count || 0);
+  }, [snippetId]);
+
   // Check if user has favorited this snippet
   useEffect(() => {
     if (user && snippetId) {
       checkFavoriteStatus();
       getFavoriteCount();
     }
-  }, [user, snippetId]);
-
-  const checkFavoriteStatus = async () => {
-    if (!user || !snippetId) return;
-
-    const { data } = await supabase
-      .from('favorites')
-      .select('id')
-      .eq('user_id', user.id)
-      .eq('snippet_id', snippetId)
-      .single();
-
-    setIsFavorited(!!data);
-  };
-
-  const getFavoriteCount = async () => {
-    if (!snippetId) return;
-
-    const { count } = await supabase
-      .from('favorites')
-      .select('*', { count: 'exact', head: true })
-      .eq('snippet_id', snippetId);
-
-    setFavoriteCount(count || 0);
-  };
+  }, [user, snippetId, checkFavoriteStatus, getFavoriteCount]);
 
   const handleCopy = async () => {
     const success = await copyToClipboard(code, {
       snippetId,
       customMessage: `${language} code copied! 🎉`,
     });
-    
+
     if (success && copyCount % 5 === 4) {
       toast.success("🔥 You're on fire! Consider favoriting this snippet", {
         action: {
@@ -113,24 +111,24 @@ export default function EnhancedCodeBlock({
   };
 
   const handleDownload = () => {
-    const blob = new Blob([code], { type: 'text/plain' });
+    const blob = new Blob([code], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
     a.download = fileName || `snippet.${getFileExtension(language)}`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    
+
     toast.success("Code downloaded! 📥");
-    
+
     // Track download
     if (snippetId) {
-      fetch('/api/analytics/copy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ snippetId, type: 'download' }),
+      fetch("/api/analytics/copy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ snippetId, type: "download" }),
       }).catch(() => {});
     }
   };
@@ -144,36 +142,34 @@ export default function EnhancedCodeBlock({
     if (!snippetId) return;
 
     setIsLoading(true);
-    
+
     try {
       if (isFavorited) {
         const { error } = await supabase
-          .from('favorites')
+          .from("favorites")
           .delete()
-          .eq('user_id', user.id)
-          .eq('snippet_id', snippetId);
+          .eq("user_id", user.id)
+          .eq("snippet_id", snippetId);
 
         if (error) throw error;
-        
+
         setIsFavorited(false);
-        setFavoriteCount(prev => prev - 1);
+        setFavoriteCount((prev) => prev - 1);
         toast.success("Removed from favorites");
       } else {
-        const { error } = await supabase
-          .from('favorites')
-          .insert({
-            user_id: user.id,
-            snippet_id: snippetId,
-          });
+        const { error } = await supabase.from("favorites").insert({
+          user_id: user.id,
+          snippet_id: snippetId,
+        });
 
         if (error) throw error;
-        
+
         setIsFavorited(true);
-        setFavoriteCount(prev => prev + 1);
+        setFavoriteCount((prev) => prev + 1);
         toast.success("Added to favorites! ⭐");
       }
     } catch (error) {
-      console.error('Favorite error:', error);
+      console.error("Favorite error:", error);
       toast.error("Failed to update favorite");
     } finally {
       setIsLoading(false);
@@ -184,16 +180,16 @@ export default function EnhancedCodeBlock({
     if (!snippetId) return;
 
     const shareUrl = `${window.location.origin}/snippets/${snippetId}`;
-    
+
     if (navigator.share) {
       try {
         await navigator.share({
-          title: title || 'Code Snippet',
+          title: title || "Code Snippet",
           text: `Check out this ${language} snippet on Snippetly`,
           url: shareUrl,
         });
         toast.success("Shared successfully! 📤");
-      } catch (error) {
+      } catch {
         // User cancelled share
       }
     } else {
@@ -206,66 +202,73 @@ export default function EnhancedCodeBlock({
 
   const handleExplainCode = async () => {
     if (!code.trim()) return;
-    
+
     setIsExplaining(true);
-    
+
     try {
       // Simulate AI explanation (replace with real AI API)
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
       const mockExplanation = `This ${language} code snippet demonstrates ${
-        language === 'JavaScript' ? 'modern ES6+ features' :
-        language === 'Python' ? 'Pythonic programming patterns' :
-        language === 'React' ? 'component-based architecture' :
-        'programming best practices'
+        language === "JavaScript"
+          ? "modern ES6+ features"
+          : language === "Python"
+          ? "Pythonic programming patterns"
+          : language === "React"
+          ? "component-based architecture"
+          : "programming best practices"
       }. The code is well-structured and follows industry standards.`;
-      
+
       setExplanation(mockExplanation);
       toast.success("AI explanation generated! 🤖");
-    } catch (error) {
+    } catch {
       toast.error("Failed to generate explanation");
     } finally {
       setIsExplaining(false);
     }
   };
 
-  const getFileExtension = (lang: string): string => {
+  const getFileExtension = (languageName: string): string => {
     const extensions: Record<string, string> = {
-      'javascript': 'js',
-      'typescript': 'ts',
-      'python': 'py',
-      'java': 'java',
-      'cpp': 'cpp',
-      'c': 'c',
-      'csharp': 'cs',
-      'php': 'php',
-      'ruby': 'rb',
-      'go': 'go',
-      'rust': 'rs',
-      'swift': 'swift',
-      'kotlin': 'kt',
-      'dart': 'dart',
-      'html': 'html',
-      'css': 'css',
-      'scss': 'scss',
-      'json': 'json',
-      'yaml': 'yml',
-      'xml': 'xml',
-      'sql': 'sql',
-      'shell': 'sh',
-      'bash': 'sh'
+      javascript: "js",
+      typescript: "ts",
+      python: "py",
+      java: "java",
+      cpp: "cpp",
+      c: "c",
+      csharp: "cs",
+      php: "php",
+      ruby: "rb",
+      go: "go",
+      rust: "rs",
+      swift: "swift",
+      kotlin: "kt",
+      dart: "dart",
+      html: "html",
+      css: "css",
+      scss: "scss",
+      json: "json",
+      yaml: "yml",
+      xml: "xml",
+      sql: "sql",
+      shell: "sh",
+      bash: "sh",
     };
-    return extensions[language.toLowerCase()] || 'txt';
+    return extensions[languageName.toLowerCase()] || "txt";
   };
 
-  const formatLanguageName = (lang: string): string => {
-    return lang.charAt(0).toUpperCase() + lang.slice(1);
+  const formatLanguageName = (languageName: string): string => {
+    return languageName.charAt(0).toUpperCase() + languageName.slice(1);
   };
 
-  const canRunCode = ['javascript', 'typescript', 'html', 'css'].includes(language.toLowerCase());
+  const canRunCode = ["javascript", "typescript", "html", "css"].includes(
+    language.toLowerCase()
+  );
 
   return (
-    <div className={`relative bg-gray-900 rounded-lg overflow-hidden group ${className} border border-gray-700 hover:border-lightGreen/50 transition-all duration-300`}>
+    <div
+      className={`relative bg-gray-900 rounded-lg overflow-hidden group ${className} border border-gray-700 hover:border-lightGreen/50 transition-all duration-300`}
+    >
       {/* Header */}
       {showToolbar && (
         <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-gray-800 to-gray-750 border-b border-gray-700">
@@ -285,22 +288,24 @@ export default function EnhancedCodeBlock({
                   {formatLanguageName(language)}
                 </span>
                 {fileName && <span>• {fileName}</span>}
-                <span>• {code.split('\n').length} lines</span>
+                <span>• {code.split("\n").length} lines</span>
                 {copyCount > 0 && (
-                  <span className="text-lightGreen animate-pulse">• Copied {copyCount}x</span>
+                  <span className="text-lightGreen animate-pulse">
+                    • Copied {copyCount}x
+                  </span>
                 )}
               </div>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-1">
             {/* AI Features Button */}
             <button
               onClick={() => setShowAIFeatures(!showAIFeatures)}
               className={`p-2 rounded transition-colors ${
-                showAIFeatures 
-                  ? 'text-purple-400 bg-purple-400/20' 
-                  : 'text-gray-400 hover:text-purple-400'
+                showAIFeatures
+                  ? "text-purple-400 bg-purple-400/20"
+                  : "text-gray-400 hover:text-purple-400"
               }`}
               title="AI Features"
             >
@@ -313,13 +318,17 @@ export default function EnhancedCodeBlock({
                 onClick={handleFavorite}
                 disabled={isLoading}
                 className={`p-2 rounded transition-colors ${
-                  isFavorited 
-                    ? 'text-red-400 hover:text-red-300' 
-                    : 'text-gray-400 hover:text-red-400'
+                  isFavorited
+                    ? "text-red-400 hover:text-red-300"
+                    : "text-gray-400 hover:text-red-400"
                 } disabled:opacity-50`}
-                title={isFavorited ? "Remove from favorites" : "Add to favorites"}
+                title={
+                  isFavorited ? "Remove from favorites" : "Add to favorites"
+                }
               >
-                <Heart className={`w-4 h-4 ${isFavorited ? 'fill-current' : ''}`} />
+                <Heart
+                  className={`w-4 h-4 ${isFavorited ? "fill-current" : ""}`}
+                />
                 {favoriteCount > 0 && (
                   <span className="text-xs ml-1">{favoriteCount}</span>
                 )}
@@ -343,16 +352,24 @@ export default function EnhancedCodeBlock({
               className="p-2 text-gray-400 hover:text-white transition-colors rounded"
               title={showRaw ? "Show highlighted" : "Show raw"}
             >
-              {showRaw ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+              {showRaw ? (
+                <Eye className="w-4 h-4" />
+              ) : (
+                <EyeOff className="w-4 h-4" />
+              )}
             </button>
-            
+
             {/* Expand/Collapse */}
             <button
               onClick={() => setIsExpanded(!isExpanded)}
               className="p-2 text-gray-400 hover:text-white transition-colors rounded"
               title={isExpanded ? "Collapse" : "Expand"}
             >
-              {isExpanded ? <RotateCcw className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+              {isExpanded ? (
+                <RotateCcw className="w-4 h-4" />
+              ) : (
+                <Maximize2 className="w-4 h-4" />
+              )}
             </button>
 
             {/* Run Code Button */}
@@ -365,7 +382,7 @@ export default function EnhancedCodeBlock({
                 <Play className="w-4 h-4" />
               </button>
             )}
-            
+
             {/* Download */}
             <button
               onClick={handleDownload}
@@ -374,18 +391,22 @@ export default function EnhancedCodeBlock({
             >
               <Download className="w-4 h-4" />
             </button>
-            
+
             {/* Copy */}
             <button
               onClick={handleCopy}
               className={`p-2 transition-colors rounded ${
-                copied 
-                  ? 'text-lightGreen bg-lightGreen/10' 
-                  : 'text-gray-400 hover:text-white'
+                copied
+                  ? "text-lightGreen bg-lightGreen/10"
+                  : "text-gray-400 hover:text-white"
               }`}
               title="Copy code"
             >
-              {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+              {copied ? (
+                <Check className="w-4 h-4" />
+              ) : (
+                <Copy className="w-4 h-4" />
+              )}
             </button>
           </div>
         </div>
@@ -396,7 +417,9 @@ export default function EnhancedCodeBlock({
         <div className="px-4 py-3 bg-purple-900/20 border-b border-purple-500/30">
           <div className="flex items-center gap-3 mb-3">
             <Sparkles className="w-5 h-5 text-purple-400" />
-            <h4 className="text-sm font-medium text-purple-300">AI Assistant</h4>
+            <h4 className="text-sm font-medium text-purple-300">
+              AI Assistant
+            </h4>
           </div>
           <div className="flex gap-2">
             <button
@@ -431,7 +454,7 @@ export default function EnhancedCodeBlock({
               Generate Tests
             </button>
           </div>
-          
+
           {explanation && (
             <div className="mt-3 p-3 bg-purple-800/30 rounded border border-purple-500/30">
               <p className="text-sm text-purple-100">{explanation}</p>
@@ -441,12 +464,12 @@ export default function EnhancedCodeBlock({
       )}
 
       {/* Code Content */}
-      <div 
+      <div
         ref={codeRef}
         className="relative"
-        style={{ 
-          maxHeight: isExpanded ? 'none' : maxHeight,
-          overflow: isExpanded ? 'visible' : 'auto'
+        style={{
+          maxHeight: isExpanded ? "none" : maxHeight,
+          overflow: isExpanded ? "visible" : "auto",
         }}
       >
         {showRaw ? (
@@ -461,20 +484,21 @@ export default function EnhancedCodeBlock({
             wrapLines={true}
             customStyle={{
               margin: 0,
-              padding: '1rem',
-              background: 'transparent',
-              fontSize: '14px'
+              padding: "1rem",
+              background: "transparent",
+              fontSize: "14px",
             }}
             codeTagProps={{
               style: {
-                fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Monaco, Consolas, "Liberation Mono", "Courier New", monospace'
-              }
+                fontFamily:
+                  'ui-monospace, SFMono-Regular, "SF Mono", Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+              },
             }}
           >
             {code}
           </SyntaxHighlighter>
         )}
-        
+
         {/* Fade overlay when collapsed */}
         {!isExpanded && (
           <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-gray-900 to-transparent pointer-events-none" />
@@ -486,8 +510,12 @@ export default function EnhancedCodeBlock({
             onClick={handleCopy}
             className="px-3 py-1 bg-black/70 backdrop-blur-sm text-white rounded text-xs flex items-center gap-1 hover:bg-black/90 transition-colors border border-gray-600"
           >
-            {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-            {copied ? 'Copied!' : 'Copy'}
+            {copied ? (
+              <Check className="w-3 h-3" />
+            ) : (
+              <Copy className="w-3 h-3" />
+            )}
+            {copied ? "Copied!" : "Copy"}
           </button>
         </div>
       </div>
@@ -498,7 +526,13 @@ export default function EnhancedCodeBlock({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <span>{code.length.toLocaleString()} characters</span>
-              <span>{code.split(/\s+/).filter(word => word.length > 0).length.toLocaleString()} words</span>
+              <span>
+                {code
+                  .split(/\s+/)
+                  .filter((word) => word.length > 0)
+                  .length.toLocaleString()}{" "}
+                words
+              </span>
               <span>{Math.ceil(code.length / 80)} estimated lines</span>
             </div>
             <div className="flex items-center gap-4">

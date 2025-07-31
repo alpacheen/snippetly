@@ -1,12 +1,25 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { User, Code, Star, Edit, Trash2, Plus, Eye, X, Save } from "lucide-react";
+import {
+  User,
+  Code,
+  Star,
+  Edit,
+  Trash2,
+  Plus,
+  Eye,
+  X,
+  Save,
+} from "lucide-react";
 import { toast } from "sonner";
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { Avatar } from "@/app/components/SafeImage";
+import {
+  withErrorHandling,
+  validateForm,
+  showValidationErrors,
+} from "@/app/components/ErrorUtils";
 
 type UserProfile = {
   id: string;
@@ -34,7 +47,9 @@ type UserStats = {
   average_rating: number;
 };
 
-const languages = [
+const SNIPPETS_PER_PAGE = 12;
+
+const SUPPORTED_LANGUAGES = [
   "JavaScript",
   "Python",
   "Java",
@@ -58,7 +73,7 @@ const languages = [
   "XML",
 ];
 
-const commonTags = [
+const COMMON_TAGS = [
   "frontend",
   "backend",
   "utility",
@@ -79,6 +94,28 @@ const commonTags = [
   "debugging",
 ];
 
+const validationRules = {
+  title: {
+    required: true,
+    minLength: 1,
+    maxLength: 200,
+    message: "Title must be between 1-200 characters",
+  },
+  description: {
+    maxLength: 1000,
+    message: "Description must be less than 1000 characters",
+  },
+  code: {
+    required: true,
+    minLength: 1,
+    message: "Code is required",
+  },
+  language: {
+    required: true,
+    message: "Please select a language",
+  },
+};
+
 export default function UserProfile({
   userId,
   isOwnProfile = false,
@@ -89,15 +126,18 @@ export default function UserProfile({
   const router = useRouter();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [snippets, setSnippets] = useState<UserSnippet[]>([]);
-  const [editingSnippet, setEditingSnippet] = useState<UserSnippet | null>(null);
+  const [editingSnippet, setEditingSnippet] = useState<UserSnippet | null>(
+    null
+  );
   const [stats, setStats] = useState<UserStats | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{
     id: string;
     title: string;
   } | null>(null);
-  const [expandedSnippet, setExpandedSnippet] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("snippets");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalSnippets, setTotalSnippets] = useState(0);
   const [editFormData, setEditFormData] = useState({
     title: "",
     description: "",
@@ -107,6 +147,17 @@ export default function UserProfile({
   });
   const [tagInput, setTagInput] = useState("");
   const [saving, setSaving] = useState(false);
+
+  // Memoized pagination
+  const paginatedSnippets = useMemo(() => {
+    const startIndex = (currentPage - 1) * SNIPPETS_PER_PAGE;
+    return snippets.slice(startIndex, startIndex + SNIPPETS_PER_PAGE);
+  }, [snippets, currentPage]);
+
+  const totalPages = useMemo(
+    () => Math.ceil(totalSnippets / SNIPPETS_PER_PAGE),
+    [totalSnippets]
+  );
 
   const fetchUserProfile = useCallback(async () => {
     try {
@@ -131,11 +182,21 @@ export default function UserProfile({
 
   const fetchUserSnippets = useCallback(async () => {
     try {
+      // Get total count first
+      const { count } = await supabase
+        .from("snippets")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", userId);
+
+      setTotalSnippets(count || 0);
+
+      // Fetch snippets with pagination
       const { data, error } = await supabase
         .from("snippets")
         .select("*")
         .eq("user_id", userId)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .range(0, SNIPPETS_PER_PAGE * 2 - 1); // Load first 2 pages
 
       if (error) {
         console.error("Error fetching snippets:", error);
@@ -146,7 +207,7 @@ export default function UserProfile({
       if (data) {
         setSnippets(data);
 
-        const totalSnippets = data.length;
+        // Calculate stats
         const avgRating =
           data.length > 0
             ? data.reduce((sum, snippet) => sum + (snippet.rating || 0), 0) /
@@ -154,7 +215,7 @@ export default function UserProfile({
             : 0;
 
         setStats({
-          total_snippets: totalSnippets,
+          total_snippets: count || 0,
           average_rating: avgRating,
         });
       }
@@ -169,7 +230,7 @@ export default function UserProfile({
   useEffect(() => {
     fetchUserProfile();
     fetchUserSnippets();
-  }, [userId, fetchUserProfile, fetchUserSnippets]);
+  }, [fetchUserProfile, fetchUserSnippets]);
 
   const handleEditSnippet = (snippet: UserSnippet) => {
     setEditingSnippet(snippet);
@@ -196,28 +257,35 @@ export default function UserProfile({
   };
 
   const handleFormChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >
   ) => {
     const { name, value } = e.target;
-    setEditFormData(prev => ({
+    setEditFormData((prev) => ({
       ...prev,
       [name]: value,
     }));
   };
 
   const handleAddTag = (tag: string) => {
-    if (tag && !editFormData.tags.includes(tag)) {
-      setEditFormData(prev => ({
+    const cleanTag = tag.trim().toLowerCase();
+    if (
+      cleanTag &&
+      !editFormData.tags.includes(cleanTag) &&
+      editFormData.tags.length < 10
+    ) {
+      setEditFormData((prev) => ({
         ...prev,
-        tags: [...prev.tags, tag],
+        tags: [...prev.tags, cleanTag],
       }));
     }
   };
 
   const handleRemoveTag = (tagToRemove: string) => {
-    setEditFormData(prev => ({
+    setEditFormData((prev) => ({
       ...prev,
-      tags: prev.tags.filter(tag => tag !== tagToRemove),
+      tags: prev.tags.filter((tag) => tag !== tagToRemove),
     }));
   };
 
@@ -226,102 +294,84 @@ export default function UserProfile({
       e.preventDefault();
       handleAddTag(tagInput.trim());
       setTagInput("");
+    } else if (
+      e.key === "Backspace" &&
+      !tagInput &&
+      editFormData.tags.length > 0
+    ) {
+      handleRemoveTag(editFormData.tags[editFormData.tags.length - 1]);
     }
   };
 
-  const handleSaveSnippet = async () => {
+  const handleSaveSnippet = withErrorHandling(async () => {
     if (!editingSnippet) return;
 
-    if (!editFormData.title.trim() || !editFormData.code.trim()) {
-      toast.error("Title and code are required");
+    // Validate form
+    const errors = validateForm(editFormData, validationRules);
+    if (errors.length > 0) {
+      showValidationErrors(errors);
       return;
     }
 
     setSaving(true);
-    try {
-      const { error } = await supabase
-        .from("snippets")
-        .update({
-          title: editFormData.title.trim(),
-          description: editFormData.description.trim(),
-          code: editFormData.code.trim(),
-          language: editFormData.language,
-          tags: editFormData.tags,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", editingSnippet.id)
-        .eq("user_id", userId);
 
-      if (error) {
-        console.error("Error updating snippet:", error);
-        toast.error("Failed to update snippet");
-        return;
-      }
-
-      toast.success("Snippet updated successfully");
-      
-      // Update local state
-      const updatedSnippet = {
-        ...editingSnippet,
-        ...editFormData,
+    const { error } = await supabase
+      .from("snippets")
+      .update({
+        title: editFormData.title.trim(),
+        description: editFormData.description.trim(),
+        code: editFormData.code.trim(),
+        language: editFormData.language,
+        tags: editFormData.tags,
         updated_at: new Date().toISOString(),
-      };
-      
-      setSnippets(prev =>
-        prev.map(snippet => 
-          snippet.id === editingSnippet.id ? updatedSnippet : snippet
-        )
-      );
-      
-      setEditingSnippet(null);
-    } catch (error) {
-      console.error("Network Error:", error);
-      toast.error("Failed to update snippet");
-    } finally {
-      setSaving(false);
-    }
-  };
+      })
+      .eq("id", editingSnippet.id)
+      .eq("user_id", userId);
 
-  const handleDeleteSnippet = async (snippetId: string) => {
-    try {
-      const { error } = await supabase
-        .from("snippets")
-        .delete()
-        .eq("id", snippetId)
-        .eq("user_id", userId);
+    if (error) throw error;
 
-      if (error) {
-        console.error("Error deleting snippet:", error);
-        toast.error("Failed to delete snippet");
-        return;
-      }
-      
-      toast.success("Snippet deleted successfully");
-      setSnippets(prev => prev.filter(snippet => snippet.id !== snippetId));
-      setDeleteConfirm(null);
-      
-      // Update stats
-      setStats(prev => prev ? {
-        ...prev,
-        total_snippets: prev.total_snippets - 1
-      } : null);
-    } catch (error) {
-      console.error("Network Error:", error);
-      toast.error("Failed to delete snippet");
-    }
-  };
+    toast.success("Snippet updated successfully");
 
-  const toggleSnippetExpand = (snippetId: string) => {
-    setExpandedSnippet(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(snippetId)) {
-        newSet.delete(snippetId);
-      } else {
-        newSet.add(snippetId);
-      }
-      return newSet;
-    });
-  };
+    // Update local state
+    const updatedSnippet = {
+      ...editingSnippet,
+      ...editFormData,
+      updated_at: new Date().toISOString(),
+    };
+
+    setSnippets((prev) =>
+      prev.map((snippet) =>
+        snippet.id === editingSnippet.id ? updatedSnippet : snippet
+      )
+    );
+
+    setEditingSnippet(null);
+  }, "Update snippet");
+
+  const handleDeleteSnippet = withErrorHandling(async (snippetId: string) => {
+    const { error } = await supabase
+      .from("snippets")
+      .delete()
+      .eq("id", snippetId)
+      .eq("user_id", userId);
+
+    if (error) throw error;
+
+    toast.success("Snippet deleted successfully");
+    setSnippets((prev) => prev.filter((snippet) => snippet.id !== snippetId));
+    setDeleteConfirm(null);
+    setTotalSnippets((prev) => prev - 1);
+
+    // Update stats
+    setStats((prev) =>
+      prev
+        ? {
+            ...prev,
+            total_snippets: prev.total_snippets - 1,
+          }
+        : null
+    );
+  }, "Delete snippet");
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
@@ -354,7 +404,9 @@ export default function UserProfile({
     return (
       <div className="max-w-4xl mx-auto py-8 text-center">
         <h1 className="text-2xl font-bold text-red-500">Profile not found</h1>
-        <p className="text-textSecondary mt-2">The user profile you're looking for doesn't exist.</p>
+        <p className="text-textSecondary mt-2">
+          The user profile you&apos;re looking for doesn&apos;t exist.
+        </p>
       </div>
     );
   }
@@ -428,12 +480,14 @@ export default function UserProfile({
                 </button>
               </div>
             )}
-            
-            {snippets.length === 0 ? (
+
+            {totalSnippets === 0 ? (
               <div className="text-center py-8">
                 <Code className="w-12 h-12 text-textSecondary mx-auto mb-4" />
                 <p className="text-textSecondary">
-                  {isOwnProfile ? "You haven't created any snippets yet." : "No snippets found."}
+                  {isOwnProfile
+                    ? "You haven't created any snippets yet."
+                    : "No snippets found."}
                 </p>
                 {isOwnProfile && (
                   <button
@@ -446,21 +500,30 @@ export default function UserProfile({
               </div>
             ) : (
               <div className="space-y-4">
-                {snippets.map((snippet) => (
-                  <div key={snippet.id} className="bg-primary border border-textSecondary rounded-lg p-6">
+                {paginatedSnippets.map((snippet) => (
+                  <div
+                    key={snippet.id}
+                    className="bg-primary border border-textSecondary rounded-lg p-6"
+                  >
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex-1">
-                        <h3 className="text-lg font-semibold mb-2">{snippet.title}</h3>
-                        <p className="text-textSecondary text-sm mb-2">{snippet.description}</p>
+                        <h3 className="text-lg font-semibold mb-2">
+                          {snippet.title}
+                        </h3>
+                        <p className="text-textSecondary text-sm mb-2">
+                          {snippet.description}
+                        </p>
                         <div className="flex items-center gap-4 text-sm text-textSecondary">
                           <span>{snippet.language}</span>
                           <span>{formatDate(snippet.created_at)}</span>
                           {snippet.updated_at !== snippet.created_at && (
-                            <span>(Updated {formatDate(snippet.updated_at)})</span>
+                            <span>
+                              (Updated {formatDate(snippet.updated_at)})
+                            </span>
                           )}
                         </div>
                       </div>
-                      
+
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => router.push(`/snippets/${snippet.id}`)}
@@ -469,7 +532,7 @@ export default function UserProfile({
                         >
                           <Eye className="w-4 h-4" />
                         </button>
-                        
+
                         {isOwnProfile && (
                           <>
                             <button
@@ -480,7 +543,12 @@ export default function UserProfile({
                               <Edit className="w-4 h-4" />
                             </button>
                             <button
-                              onClick={() => setDeleteConfirm({ id: snippet.id, title: snippet.title })}
+                              onClick={() =>
+                                setDeleteConfirm({
+                                  id: snippet.id,
+                                  title: snippet.title,
+                                })
+                              }
                               className="p-2 text-textSecondary hover:text-red-400 transition-colors"
                               title="Delete snippet"
                             >
@@ -507,27 +575,40 @@ export default function UserProfile({
 
                     {/* Code Preview */}
                     <div className="relative">
-                      <div className="max-h-40 overflow-hidden">
-                        <SyntaxHighlighter
-                          language={snippet.language.toLowerCase()}
-                          style={vscDarkPlus}
-                          className="text-sm"
-                        >
-                          {expandedSnippet.has(snippet.id) ? snippet.code : snippet.code.slice(0, 200)}
-                        </SyntaxHighlighter>
-                      </div>
-                      
-                      {snippet.code.length > 200 && (
-                        <button
-                          onClick={() => toggleSnippetExpand(snippet.id)}
-                          className="mt-2 text-lightGreen hover:underline text-sm"
-                        >
-                          {expandedSnippet.has(snippet.id) ? "Show less" : "Show more"}
-                        </button>
-                      )}
+                      <pre className="p-4 bg-gray-900 rounded text-gray-300 text-sm font-mono overflow-x-auto max-h-40 overflow-y-hidden">
+                        {snippet.code.slice(0, 300)}
+                        {snippet.code.length > 300 && "..."}
+                      </pre>
                     </div>
                   </div>
                 ))}
+
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-center gap-2 mt-6">
+                    {currentPage > 1 && (
+                      <button
+                        onClick={() => setCurrentPage((prev) => prev - 1)}
+                        className="px-4 py-2 border border-textSecondary text-text rounded-lg hover:bg-textSecondary/10 transition-colors"
+                      >
+                        Previous
+                      </button>
+                    )}
+
+                    <span className="px-4 py-2 text-textSecondary">
+                      Page {currentPage} of {totalPages}
+                    </span>
+
+                    {currentPage < totalPages && (
+                      <button
+                        onClick={() => setCurrentPage((prev) => prev + 1)}
+                        className="px-4 py-2 border border-textSecondary text-text rounded-lg hover:bg-textSecondary/10 transition-colors"
+                      >
+                        Next
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -557,6 +638,7 @@ export default function UserProfile({
               <button
                 onClick={handleCancelEdit}
                 className="text-textSecondary hover:text-text transition-colors"
+                disabled={saving}
               >
                 <X className="w-5 h-5" />
               </button>
@@ -564,7 +646,9 @@ export default function UserProfile({
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-2">Title *</label>
+                <label className="block text-sm font-medium mb-2">
+                  Title *
+                </label>
                 <input
                   type="text"
                   name="title"
@@ -572,30 +656,39 @@ export default function UserProfile({
                   onChange={handleFormChange}
                   className="w-full border px-3 py-2 rounded bg-primary text-text border-textSecondary focus:border-lightGreen focus:outline-none"
                   required
+                  disabled={saving}
+                  maxLength={200}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">Description</label>
+                <label className="block text-sm font-medium mb-2">
+                  Description
+                </label>
                 <textarea
                   name="description"
                   value={editFormData.description}
                   onChange={handleFormChange}
                   rows={3}
                   className="w-full border px-3 py-2 rounded bg-primary text-text border-textSecondary focus:border-lightGreen focus:outline-none"
+                  disabled={saving}
+                  maxLength={1000}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">Language *</label>
+                <label className="block text-sm font-medium mb-2">
+                  Language *
+                </label>
                 <select
                   name="language"
                   value={editFormData.language}
                   onChange={handleFormChange}
                   className="w-full border px-3 py-2 rounded bg-primary text-text border-textSecondary focus:border-lightGreen focus:outline-none"
                   required
+                  disabled={saving}
                 >
-                  {languages.map((lang) => (
+                  {SUPPORTED_LANGUAGES.map((lang) => (
                     <option key={lang} value={lang}>
                       {lang}
                     </option>
@@ -612,75 +705,86 @@ export default function UserProfile({
                   rows={12}
                   className="w-full border px-3 py-2 rounded bg-primary text-text border-textSecondary focus:border-lightGreen focus:outline-none font-mono"
                   required
+                  disabled={saving}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">Tags</label>
+                <label className="block text-sm font-medium mb-2">
+                  Tags ({editFormData.tags.length}/10)
+                </label>
                 <div className="space-y-3">
-                  <input
-                    type="text"
-                    value={tagInput}
-                    onChange={(e) => setTagInput(e.target.value)}
-                    onKeyDown={handleTagInputKeyDown}
-                    placeholder="Type a tag and press Enter"
-                    className="w-full border px-3 py-2 rounded bg-primary text-text border-textSecondary focus:border-lightGreen focus:outline-none"
-                  />
-                  
-                  <div className="space-y-2">
-                    <p className="text-sm text-textSecondary">Common tags:</p>
+                  <div className="flex flex-wrap gap-2 p-3 border border-textSecondary rounded-lg bg-primary min-h-[2.5rem] items-center">
+                    {editFormData.tags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="flex items-center gap-1 px-2 py-1 bg-darkGreen text-text rounded text-sm"
+                      >
+                        {tag}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveTag(tag)}
+                          disabled={saving}
+                          className="text-red-300 hover:text-red-500 ml-1 disabled:opacity-50"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    ))}
+                    <input
+                      type="text"
+                      value={tagInput}
+                      onChange={(e) => setTagInput(e.target.value)}
+                      onKeyDown={handleTagInputKeyDown}
+                      placeholder={
+                        editFormData.tags.length === 0
+                          ? "Type a tag and press Enter..."
+                          : "Add another tag..."
+                      }
+                      className="flex-1 min-w-[120px] bg-transparent outline-none text-text placeholder-textSecondary disabled:opacity-50"
+                      disabled={saving || editFormData.tags.length >= 10}
+                    />
+                  </div>
+
+                  <div>
+                    <p className="text-sm text-textSecondary mb-2">
+                      Popular tags:
+                    </p>
                     <div className="flex flex-wrap gap-2">
-                      {commonTags.map((tag) => (
+                      {COMMON_TAGS.map((tag) => (
                         <button
                           key={tag}
                           type="button"
                           onClick={() => handleAddTag(tag)}
-                          className="px-3 py-1 bg-text text-primary rounded text-sm hover:bg-lightGreen transition"
+                          disabled={
+                            saving ||
+                            editFormData.tags.includes(tag) ||
+                            editFormData.tags.length >= 10
+                          }
+                          className="px-3 py-1 bg-text text-primary rounded text-sm hover:bg-lightGreen transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           {tag}
                         </button>
                       ))}
                     </div>
                   </div>
-                  
-                  {editFormData.tags.length > 0 && (
-                    <div className="space-y-2">
-                      <p className="text-sm text-textSecondary">Selected tags:</p>
-                      <div className="flex flex-wrap gap-2">
-                        {editFormData.tags.map((tag) => (
-                          <span
-                            key={tag}
-                            className="px-3 py-1 bg-darkGreen text-text rounded text-sm flex items-center gap-2"
-                          >
-                            {tag}
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveTag(tag)}
-                              className="text-red-300 hover:text-red-500 ml-1"
-                            >
-                              ×
-                            </button>
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                 </div>
               </div>
 
               <div className="flex gap-4 pt-4">
                 <button
-                  onClick={handleSaveSnippet}
+                  onClick={() => handleSaveSnippet()}
                   disabled={saving}
                   className="flex items-center gap-2 px-6 py-3 bg-lightGreen text-primary rounded font-semibold hover:bg-lightGreen/80 disabled:opacity-50 transition"
                 >
                   <Save className="w-4 h-4" />
                   {saving ? "Saving..." : "Save Changes"}
                 </button>
-                
+
                 <button
                   onClick={handleCancelEdit}
-                  className="px-6 py-3 bg-textSecondary text-primary rounded font-semibold hover:bg-textSecondary/80 transition"
+                  disabled={saving}
+                  className="px-6 py-3 bg-textSecondary text-primary rounded font-semibold hover:bg-textSecondary/80 transition disabled:opacity-50"
                 >
                   Cancel
                 </button>
@@ -696,7 +800,8 @@ export default function UserProfile({
           <div className="bg-primary border border-textSecondary rounded-lg p-6 w-full max-w-md">
             <h3 className="text-lg font-bold mb-4">Delete Snippet</h3>
             <p className="text-textSecondary mb-6">
-              Are you sure you want to delete "{deleteConfirm.title}"? This action cannot be undone.
+              Are you sure you want to delete &ldquo;{deleteConfirm.title}
+              &rdquo;? This action cannot be undone.
             </p>
             <div className="flex gap-4">
               <button

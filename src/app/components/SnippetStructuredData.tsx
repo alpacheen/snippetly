@@ -1,4 +1,16 @@
-export function SnippetStructuredData({ snippet }: { snippet: any }) {
+export function SnippetStructuredData({
+  snippet,
+}: {
+  snippet: {
+    id: string;
+    title: string;
+    description?: string;
+    language: string;
+    created_at: string;
+    updated_at?: string;
+    author?: { username: string };
+  };
+}) {
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "SoftwareSourceCode",

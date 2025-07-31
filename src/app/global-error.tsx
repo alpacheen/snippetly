@@ -10,7 +10,6 @@ export default function GlobalError({
   reset: () => void;
 }) {
   useEffect(() => {
-    // Log the error to an error reporting service
     console.error("Global error:", error);
   }, [error]);
 
@@ -25,8 +24,8 @@ export default function GlobalError({
           </h1>
 
           <p className="text-textSecondary mb-6">
-            We're sorry, but something unexpected happened. Our team has been
-            notified.
+            We&apos;re sorry, but something unexpected happened. Our team has
+            been notified.
           </p>
 
           <div className="space-y-3">
