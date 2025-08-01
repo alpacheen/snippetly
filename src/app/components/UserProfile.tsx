@@ -1,4 +1,5 @@
 "use client";
+
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -12,9 +13,12 @@ import {
   Eye,
   X,
   Save,
+  Heart,
+  Activity,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Avatar } from "@/app/components/SafeImage";
+import FavoriteSnippets from "@/app/components/FavoriteSnippets";
 import {
   withErrorHandling,
   validateForm,
@@ -44,7 +48,9 @@ type UserSnippet = {
 
 type UserStats = {
   total_snippets: number;
+  total_favorites: number;
   average_rating: number;
+  total_comments: number;
 };
 
 const SNIPPETS_PER_PAGE = 12;
@@ -180,6 +186,56 @@ export default function UserProfile({
     }
   }, [userId]);
 
+  const fetchUserStats = useCallback(async () => {
+    try {
+      // Fetch comprehensive stats
+      const [snippetsCount, favoritesCount, commentsCount, avgRating] =
+        await Promise.all([
+          // Total snippets
+          supabase
+            .from("snippets")
+            .select("*", { count: "exact", head: true })
+            .eq("user_id", userId),
+
+          // Total favorites
+          supabase
+            .from("favorites")
+            .select("*", { count: "exact", head: true })
+            .eq("user_id", userId),
+
+          // Total comments
+          supabase
+            .from("comments")
+            .select("*", { count: "exact", head: true })
+            .eq("user_id", userId),
+
+          // Average rating of user's snippets
+          supabase
+            .from("snippets")
+            .select("rating")
+            .eq("user_id", userId)
+            .not("rating", "is", null),
+        ]);
+
+      const avgRatingValue =
+        avgRating.data && avgRating.data.length > 0
+          ? avgRating.data.reduce(
+              (sum, snippet) => sum + (snippet.rating || 0),
+              0
+            ) / avgRating.data.length
+          : 0;
+
+      setStats({
+        total_snippets: snippetsCount.count || 0,
+        total_favorites: favoritesCount.count || 0,
+        total_comments: commentsCount.count || 0,
+        average_rating: avgRatingValue,
+      });
+    } catch (error) {
+      console.error("Error fetching user stats:", error);
+    }
+  }, [userId]);
+
   const fetchUserSnippets = useCallback(async () => {
     try {
       // Get total count first
@@ -206,18 +262,6 @@ export default function UserProfile({
 
       if (data) {
         setSnippets(data);
-
-        // Calculate stats
-        const avgRating =
-          data.length > 0
-            ? data.reduce((sum, snippet) => sum + (snippet.rating || 0), 0) /
-              data.length
-            : 0;
-
-        setStats({
-          total_snippets: count || 0,
-          average_rating: avgRating,
-        });
       }
     } catch (error) {
       console.error("Error in fetchUserSnippets:", error);
@@ -228,9 +272,15 @@ export default function UserProfile({
   }, [userId]);
 
   useEffect(() => {
-    fetchUserProfile();
-    fetchUserSnippets();
-  }, [fetchUserProfile, fetchUserSnippets]);
+    const loadData = async () => {
+      await Promise.all([
+        fetchUserProfile(),
+        fetchUserSnippets(),
+        fetchUserStats(),
+      ]);
+    };
+    loadData();
+  }, [fetchUserProfile, fetchUserSnippets, fetchUserStats]);
 
   const handleEditSnippet = (snippet: UserSnippet) => {
     setEditingSnippet(snippet);
@@ -431,14 +481,22 @@ export default function UserProfile({
             <p className="text-sm text-textSecondary mt-1">
               Joined {formatDate(profile.created_at)}
             </p>
-            <div className="flex gap-4 mt-4 text-sm">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-4 text-sm">
               <div className="flex items-center gap-1">
                 <Code className="w-4 h-4" />
                 <span>{stats?.total_snippets || 0} snippets</span>
               </div>
               <div className="flex items-center gap-1">
+                <Heart className="w-4 h-4 text-red-400" />
+                <span>{stats?.total_favorites || 0} favorites</span>
+              </div>
+              <div className="flex items-center gap-1">
                 <Star className="w-4 h-4 text-amber-300" />
                 <span>{stats?.average_rating.toFixed(1) || 0} avg rating</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <Activity className="w-4 h-4 text-blue-400" />
+                <span>{stats?.total_comments || 0} comments</span>
               </div>
             </div>
           </div>
@@ -447,18 +505,27 @@ export default function UserProfile({
 
       {/* Tabs */}
       <div className="border-b">
-        <nav className="flex space-x-6">
+        <nav className="flex space-x-6" role="tablist">
           {["snippets", "favorites", "activity"].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`pb-2 px-1 border-b-2 font-medium text-sm ${
+              role="tab"
+              aria-selected={activeTab === tab}
+              aria-controls={`${tab}-panel`}
+              className={`pb-2 px-1 border-b-2 font-medium text-sm transition-colors ${
                 activeTab === tab
                   ? "border-lightGreen text-lightGreen"
                   : "border-transparent text-textSecondary hover:text-text"
               }`}
             >
               {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              {tab === "snippets" && stats?.total_snippets
+                ? ` (${stats.total_snippets})`
+                : ""}
+              {tab === "favorites" && stats?.total_favorites
+                ? ` (${stats.total_favorites})`
+                : ""}
             </button>
           ))}
         </nav>
@@ -467,13 +534,19 @@ export default function UserProfile({
       {/* Content */}
       <div className="space-y-4">
         {activeTab === "snippets" && (
-          <div className="space-y-4">
+          <div
+            id="snippets-panel"
+            role="tabpanel"
+            aria-labelledby="snippets-tab"
+            className="space-y-4"
+          >
             {isOwnProfile && (
               <div className="flex justify-between items-center">
                 <h2 className="text-xl font-semibold">Your Snippets</h2>
                 <button
                   onClick={() => router.push("/snippets/create")}
                   className="flex items-center gap-2 px-4 py-2 bg-lightGreen text-primary rounded-lg hover:bg-lightGreen/80 transition-colors font-medium"
+                  aria-label="Create new snippet"
                 >
                   <Plus className="w-4 h-4" />
                   Create New
@@ -529,6 +602,7 @@ export default function UserProfile({
                           onClick={() => router.push(`/snippets/${snippet.id}`)}
                           className="p-2 text-textSecondary hover:text-lightGreen transition-colors"
                           title="View snippet"
+                          aria-label={`View snippet: ${snippet.title}`}
                         >
                           <Eye className="w-4 h-4" />
                         </button>
@@ -539,6 +613,7 @@ export default function UserProfile({
                               onClick={() => handleEditSnippet(snippet)}
                               className="p-2 text-textSecondary hover:text-blue-400 transition-colors"
                               title="Edit snippet"
+                              aria-label={`Edit snippet: ${snippet.title}`}
                             >
                               <Edit className="w-4 h-4" />
                             </button>
@@ -551,6 +626,7 @@ export default function UserProfile({
                               }
                               className="p-2 text-textSecondary hover:text-red-400 transition-colors"
                               title="Delete snippet"
+                              aria-label={`Delete snippet: ${snippet.title}`}
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
@@ -590,12 +666,16 @@ export default function UserProfile({
                       <button
                         onClick={() => setCurrentPage((prev) => prev - 1)}
                         className="px-4 py-2 border border-textSecondary text-text rounded-lg hover:bg-textSecondary/10 transition-colors"
+                        aria-label="Go to previous page"
                       >
                         Previous
                       </button>
                     )}
 
-                    <span className="px-4 py-2 text-textSecondary">
+                    <span
+                      className="px-4 py-2 text-textSecondary"
+                      aria-live="polite"
+                    >
                       Page {currentPage} of {totalPages}
                     </span>
 
@@ -603,6 +683,7 @@ export default function UserProfile({
                       <button
                         onClick={() => setCurrentPage((prev) => prev + 1)}
                         className="px-4 py-2 border border-textSecondary text-text rounded-lg hover:bg-textSecondary/10 transition-colors"
+                        aria-label="Go to next page"
                       >
                         Next
                       </button>
@@ -615,16 +696,27 @@ export default function UserProfile({
         )}
 
         {activeTab === "favorites" && (
-          <div className="text-center py-8">
-            <Star className="w-12 h-12 text-textSecondary mx-auto mb-4" />
-            <p className="text-textSecondary">Favorites feature coming soon!</p>
+          <div
+            id="favorites-panel"
+            role="tabpanel"
+            aria-labelledby="favorites-tab"
+          >
+            <FavoriteSnippets userId={userId} isOwnProfile={isOwnProfile} />
           </div>
         )}
 
         {activeTab === "activity" && (
-          <div className="text-center py-8">
-            <User className="w-12 h-12 text-textSecondary mx-auto mb-4" />
+          <div
+            id="activity-panel"
+            role="tabpanel"
+            aria-labelledby="activity-tab"
+            className="text-center py-8"
+          >
+            <Activity className="w-12 h-12 text-textSecondary mx-auto mb-4" />
             <p className="text-textSecondary">Activity feed coming soon!</p>
+            <p className="text-sm text-textSecondary mt-2">
+              See recent comments, ratings, and snippet interactions.
+            </p>
           </div>
         )}
       </div>
@@ -639,17 +731,28 @@ export default function UserProfile({
                 onClick={handleCancelEdit}
                 className="text-textSecondary hover:text-text transition-colors"
                 disabled={saving}
+                aria-label="Close edit dialog"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="space-y-4">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleSaveSnippet();
+              }}
+              className="space-y-4"
+            >
               <div>
-                <label className="block text-sm font-medium mb-2">
+                <label
+                  htmlFor="edit-title"
+                  className="block text-sm font-medium mb-2"
+                >
                   Title *
                 </label>
                 <input
+                  id="edit-title"
                   type="text"
                   name="title"
                   value={editFormData.title}
@@ -658,14 +761,22 @@ export default function UserProfile({
                   required
                   disabled={saving}
                   maxLength={200}
+                  aria-describedby="title-help"
                 />
+                <p id="title-help" className="text-xs text-textSecondary mt-1">
+                  {editFormData.title.length}/200 characters
+                </p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">
+                <label
+                  htmlFor="edit-description"
+                  className="block text-sm font-medium mb-2"
+                >
                   Description
                 </label>
                 <textarea
+                  id="edit-description"
                   name="description"
                   value={editFormData.description}
                   onChange={handleFormChange}
@@ -673,14 +784,25 @@ export default function UserProfile({
                   className="w-full border px-3 py-2 rounded bg-primary text-text border-textSecondary focus:border-lightGreen focus:outline-none"
                   disabled={saving}
                   maxLength={1000}
+                  aria-describedby="description-help"
                 />
+                <p
+                  id="description-help"
+                  className="text-xs text-textSecondary mt-1"
+                >
+                  {editFormData.description.length}/1000 characters
+                </p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">
+                <label
+                  htmlFor="edit-language"
+                  className="block text-sm font-medium mb-2"
+                >
                   Language *
                 </label>
                 <select
+                  id="edit-language"
                   name="language"
                   value={editFormData.language}
                   onChange={handleFormChange}
@@ -697,8 +819,14 @@ export default function UserProfile({
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">Code *</label>
+                <label
+                  htmlFor="edit-code"
+                  className="block text-sm font-medium mb-2"
+                >
+                  Code *
+                </label>
                 <textarea
+                  id="edit-code"
                   name="code"
                   value={editFormData.code}
                   onChange={handleFormChange}
@@ -706,7 +834,11 @@ export default function UserProfile({
                   className="w-full border px-3 py-2 rounded bg-primary text-text border-textSecondary focus:border-lightGreen focus:outline-none font-mono"
                   required
                   disabled={saving}
+                  aria-describedby="code-help"
                 />
+                <p id="code-help" className="text-xs text-textSecondary mt-1">
+                  Use proper indentation and formatting
+                </p>
               </div>
 
               <div>
@@ -726,6 +858,7 @@ export default function UserProfile({
                           onClick={() => handleRemoveTag(tag)}
                           disabled={saving}
                           className="text-red-300 hover:text-red-500 ml-1 disabled:opacity-50"
+                          aria-label={`Remove tag: ${tag}`}
                         >
                           <X className="w-3 h-3" />
                         </button>
@@ -743,6 +876,7 @@ export default function UserProfile({
                       }
                       className="flex-1 min-w-[120px] bg-transparent outline-none text-text placeholder-textSecondary disabled:opacity-50"
                       disabled={saving || editFormData.tags.length >= 10}
+                      aria-label="Add new tag"
                     />
                   </div>
 
@@ -762,6 +896,7 @@ export default function UserProfile({
                             editFormData.tags.length >= 10
                           }
                           className="px-3 py-1 bg-text text-primary rounded text-sm hover:bg-lightGreen transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          aria-label={`Add tag: ${tag}`}
                         >
                           {tag}
                         </button>
@@ -773,7 +908,7 @@ export default function UserProfile({
 
               <div className="flex gap-4 pt-4">
                 <button
-                  onClick={() => handleSaveSnippet()}
+                  type="submit"
                   disabled={saving}
                   className="flex items-center gap-2 px-6 py-3 bg-lightGreen text-primary rounded font-semibold hover:bg-lightGreen/80 disabled:opacity-50 transition"
                 >
@@ -782,6 +917,7 @@ export default function UserProfile({
                 </button>
 
                 <button
+                  type="button"
                   onClick={handleCancelEdit}
                   disabled={saving}
                   className="px-6 py-3 bg-textSecondary text-primary rounded font-semibold hover:bg-textSecondary/80 transition disabled:opacity-50"
@@ -789,7 +925,7 @@ export default function UserProfile({
                   Cancel
                 </button>
               </div>
-            </div>
+            </form>
           </div>
         </div>
       )}
