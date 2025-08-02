@@ -68,10 +68,8 @@ export default function EnhancedSearchBar() {
       try {
         const suggestions: SearchSuggestion[] = [];
 
-        // Fixed: Proper Supabase query syntax with correct text search
         const searchPattern = `%${debouncedQuery}%`;
 
-        // Get matching snippets - simplified query without joins for search
         const { data: snippets } = await supabase
           .from("snippets")
           .select("id, title, language")
@@ -88,7 +86,7 @@ export default function EnhancedSearchBar() {
           });
         }
 
-        // Get matching languages - use DISTINCT to avoid duplicates
+        
         const { data: languages } = await supabase
           .from("snippets")
           .select("language")
