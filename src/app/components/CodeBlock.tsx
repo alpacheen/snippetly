@@ -24,8 +24,9 @@ import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
+import { explainCode } from "@/lib/ai";
 
-// Dynamically import SyntaxHighlighter to avoid SSR issues
+
 const SyntaxHighlighter = dynamic(
   () => import("react-syntax-highlighter").then((mod) => mod.Prism),
   {
@@ -83,11 +84,11 @@ export default function EnhancedCodeBlock({
   > | null>(null);
   const codeRef = useRef<HTMLDivElement>(null);
 
-  // Handle client-side mounting and load syntax highlighter style
+  
   useEffect(() => {
     setMounted(true);
 
-    // Load the syntax highlighter style on client side
+    
     import("react-syntax-highlighter/dist/esm/styles/prism")
       .then((mod) => {
         setHighlighterStyle(mod.vscDarkPlus);
@@ -110,7 +111,7 @@ export default function EnhancedCodeBlock({
 
       setIsFavorited(!!data);
     } catch (error) {
-      // Ignore errors for favorites check
+      
       console.warn("Error checking favorite status:", error);
     }
   }, [user, snippetId]);
@@ -126,7 +127,7 @@ export default function EnhancedCodeBlock({
 
       setFavoriteCount(count || 0);
     } catch (error) {
-      // Ignore errors for count
+      
       console.warn("Error getting favorite count:", error);
     }
   }, [snippetId]);
@@ -254,30 +255,47 @@ export default function EnhancedCodeBlock({
 
   const handleExplainCode = async () => {
     if (!code.trim()) return;
-
+  
     setIsExplaining(true);
-
+  
     try {
-      // Simulate AI explanation (replace with real AI API)
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-
-      const mockExplanation = `This ${language} code snippet demonstrates ${
-        language === "JavaScript"
-          ? "modern ES6+ features"
-          : language === "Python"
-          ? "Pythonic programming patterns"
-          : language === "React"
-          ? "component-based architecture"
-          : "programming best practices"
-      }. The code is well-structured and follows industry standards.`;
-
-      setExplanation(mockExplanation);
+      const result = await explainCode(code, language);
+      
+      const formattedExplanation = `
+  **What this code does:**
+  ${result.explanation}
+  
+  **Key Points:**
+  ${result.keyPoints.map(point => `• ${point}`).join('\n')}
+  
+  **Suggestions for improvement:**
+  ${result.suggestions.map(suggestion => `• ${suggestion}`).join('\n')}
+  
+  **Complexity Level:** ${result.complexity}
+      `.trim();
+  
+      setExplanation(formattedExplanation);
       toast.success("AI explanation generated! 🤖");
-    } catch {
-      toast.error("Failed to generate explanation");
+    } catch (error) {
+      console.error('AI explanation error:', error);
+      toast.error("Failed to generate explanation. Please try again.");
+      
+      // Fallback explanation
+      setExplanation(`This ${language} code snippet demonstrates programming concepts. Consider adding comments and following best practices for better readability.`);
     } finally {
       setIsExplaining(false);
     }
+  };
+  
+  // Also update the other AI feature buttons:
+  const handleOptimizeCode = async () => {
+    toast.info("Code optimization coming soon! ⚡");
+    // TODO: Implement when ready
+  };
+  
+  const handleGenerateTests = async () => {
+    toast.info("Test generation coming soon! 🧪");
+    // TODO: Implement when ready
   };
 
   const getFileExtension = (languageName: string): string => {
