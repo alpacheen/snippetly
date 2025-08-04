@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback,  } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
 import { Avatar } from "@/app/components/SafeImage";

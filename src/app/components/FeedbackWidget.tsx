@@ -138,7 +138,7 @@ export default function FeedbackWidget() {
                   className="w-full p-3 border border-textSecondary rounded-lg bg-primary text-text placeholder-textSecondary focus:border-lightGreen focus:outline-none"
                 />
                 <p className="text-xs text-textSecondary mt-1">
-                  We'll only use this to follow up on your feedback
+                  We&apos;ll only use this to follow up on your feedback
                 </p>
               </div>
 

@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import {
-  User,
   Code,
   Star,
   Edit,

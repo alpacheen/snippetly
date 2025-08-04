@@ -9,6 +9,7 @@
     "lint": "next lint",
     "lint:fix": "next lint --fix",
     "type-check": "tsc --noEmit",
+    "launch-check": "./launch-checklist.sh",
     "test:production": "chmod +x test-production.sh && ./test-production.sh",
     "clean": "rm -rf .next && rm -rf out",
     "deploy:vercel": "vercel --prod",

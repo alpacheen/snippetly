@@ -29,19 +29,21 @@ export function generateSEOMetadata({
   const fullUrl = url ? `${baseUrl}${url}` : baseUrl;
   const ogImage = image || `${baseUrl}/api/og?title=${encodeURIComponent(title)}`;
 
+  const keywordsList = [
+    'code snippets',
+    'programming',
+    'developer tools',
+    'AI code analysis',
+    'code sharing',
+    'software development',
+    ...(language ? [language] : []),
+    ...tags,
+  ].filter((keyword): keyword is string => Boolean(keyword));
+
   return {
     title,
     description,
-    keywords: [
-      'code snippets',
-      'programming',
-      'developer tools',
-      'AI code analysis',
-      'code sharing',
-      'software development',
-      language,
-      ...tags,
-    ].filter(Boolean),
+    keywords: keywordsList,
     
     authors: author ? [{ name: author }] : [{ name: 'Snippetly Community' }],
     

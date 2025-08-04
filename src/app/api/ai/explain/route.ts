@@ -123,7 +123,6 @@ Focus on being educational and helpful for developers learning ${language}. Avoi
     }
   } catch (error) {
     console.error("AI explain error:", error);
-    return getMockResponse(code, language);
   }
 }
 

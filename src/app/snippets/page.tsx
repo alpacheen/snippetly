@@ -31,7 +31,7 @@ interface SupabaseSnippetRaw {
         username: string;
         avatar_url?: string;
       }[]
-    | null;
+    | [];
 }
 
 // Helper function to extract string value from SearchParams

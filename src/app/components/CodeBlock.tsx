@@ -288,15 +288,15 @@ export default function EnhancedCodeBlock({
   };
   
   // Also update the other AI feature buttons:
-  const handleOptimizeCode = async () => {
-    toast.info("Code optimization coming soon! ⚡");
-    // TODO: Implement when ready
-  };
+  // const handleOptimizeCode = async () => {
+  //   toast.info("Code optimization coming soon! ⚡");
+  //   // TODO: Implement when ready
+  // };
   
-  const handleGenerateTests = async () => {
-    toast.info("Test generation coming soon! 🧪");
-    // TODO: Implement when ready
-  };
+  // const handleGenerateTests = async () => {
+  //   toast.info("Test generation coming soon! 🧪");
+  //   // TODO: Implement when ready
+  // };
 
   const getFileExtension = (languageName: string): string => {
     const extensions: Record<string, string> = {

@@ -6,7 +6,6 @@ import {
   Heart,
   Star,
   Code,
-  Calendar,
   ExternalLink,
   AlertTriangle,
 } from "lucide-react";
@@ -47,7 +46,7 @@ export default function FavoriteSnippets({
 
       console.log("Fetching favorites for user:", userId);
 
-      // Step 1: Get the favorite records (just IDs and timestamps)
+      
       const { data: favoriteRecords, error: favoritesError } = await supabase
         .from("favorites")
         .select("snippet_id, created_at")
@@ -67,7 +66,7 @@ export default function FavoriteSnippets({
         return;
       }
 
-      // Step 2: Get the snippet details for favorited snippets (WITHOUT updated_at)
+      
       const snippetIds = favoriteRecords.map((fav) => fav.snippet_id);
 
       const { data: snippetsData, error: snippetsError } = await supabase
@@ -95,7 +94,7 @@ export default function FavoriteSnippets({
 
       console.log("Snippets data:", snippetsData);
 
-      // Step 3: Get author information for each snippet
+      
       const authorIds = [...new Set(snippetsData?.map((s) => s.user_id) || [])];
 
       const { data: authorsData, error: authorsError } = await supabase
@@ -182,13 +181,13 @@ export default function FavoriteSnippets({
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  };
+  // const formatDate = (dateString: string) => {
+  //   return new Date(dateString).toLocaleDateString("en-US", {
+  //     year: "numeric",
+  //     month: "short",
+  //     day: "numeric",
+  //   });
+  // };
 
   if (loading) {
     return (
