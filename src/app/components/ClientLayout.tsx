@@ -3,6 +3,7 @@
 import { ReactNode } from "react";
 import { Toaster } from "sonner";
 import NavBar from "@/app/components/NavBar";
+import FeedbackWidget from "@/app/components/FeedbackWidget";
 import { AuthProvider } from "@/lib/auth-context";
 import ErrorBoundary from "@/app/components/ErrorBoundary";
 import { AlertTriangle, RefreshCw, Home } from "lucide-react";
@@ -105,6 +106,9 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
           &copy; {new Date().getFullYear()} Snippetly. All rights reserved.
         </footer>
       </AuthProvider>
+
+      {/* Add feedback widget */}
+      <FeedbackWidget />
     </ErrorBoundary>
   );
 }

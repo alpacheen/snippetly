@@ -1,13 +1,11 @@
 import { toast } from "sonner";
 
-// Error types
 export interface AppError extends Error {
   code?: string;
   status?: number;
   context?: Record<string, unknown>;
 }
 
-// Create a structured error
 export function createError(
   message: string,
   code?: string,
@@ -21,7 +19,6 @@ export function createError(
   return error;
 }
 
-// Error logging function
 export function logError(
   error: Error | AppError,
   context?: Record<string, unknown>
@@ -39,16 +36,11 @@ export function logError(
     ...context,
   };
 
-  // Log to console in development
   if (process.env.NODE_ENV === "development") {
     console.error("App Error:", errorData);
   }
-
-  // In production, you would send this to an external service like Sentry
-  // Example: Sentry.captureException(error, { extra: errorData });
 }
 
-// Handle Supabase errors
 export function handleSupabaseError(
   error: unknown,
   context?: string

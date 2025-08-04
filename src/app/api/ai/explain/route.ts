@@ -18,7 +18,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    
     if (code.length > 8000) {
       return NextResponse.json(
         { error: "Code snippet too long (max 8000 characters)" },
@@ -29,7 +28,6 @@ export async function POST(req: NextRequest) {
     const anthropicKey = process.env.ANTHROPIC_API_KEY;
 
     if (!anthropicKey) {
-      // Fallback to mock response if no API key
       console.warn("ANTHROPIC_API_KEY not found, using mock response");
       return getMockResponse(code, language);
     }
@@ -59,7 +57,7 @@ Focus on being educational and helpful for developers learning ${language}. Avoi
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-3-haiku-20240307",
+        model: "claude-3-5-sonnet-20241022", // Updated to latest model
         max_tokens: 1200,
         temperature: 0.3,
         messages: [
@@ -74,8 +72,6 @@ Focus on being educational and helpful for developers learning ${language}. Avoi
     if (!response.ok) {
       const errorText = await response.text();
       console.error("Anthropic API error:", response.status, errorText);
-
-      // Fallback to mock on API error
       return getMockResponse(code, language);
     }
 
@@ -131,7 +127,7 @@ Focus on being educational and helpful for developers learning ${language}. Avoi
   }
 }
 
-// Fallback mock response function
+// Enhanced mock response function
 function getMockResponse(code: string, language: string) {
   const lines = code.split("\n").length;
   const hasAsync = code.includes("async") || code.includes("await");
