@@ -2,7 +2,7 @@
 
 > **Like Spotify, but for code.** Discover, save, and share code snippets with AI-powered explanations.
 
-**🌐 Live App:** [https://snippetly-lyart.vercel.app](https://snippetly-lyart.vercel.app)
+
 
 ## ✨ Features
 
@@ -40,9 +40,7 @@
 - **Deployment:** Vercel
 - **Styling:** Tailwind CSS + Custom CSS Variables
 
-<div align="center">
-  <img src="snippetly/assets/Screenshot 2025-08-04 at 2.42.28 pm.png " alt="Snippetly - AI-Powered Code Library" width="100%">
-</div>
+
 
 ## 🔧 Key Components
 
