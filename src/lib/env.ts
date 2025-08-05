@@ -14,25 +14,16 @@ function validateEnvironment(): EnvironmentConfig {
 
   const missing = requiredVars.filter((varName) => !process.env[varName]);
 
-  if (missing.length > 0) {
-    // Only throw error on server side, not in browser
-    if (typeof window === "undefined") {
-      throw new Error(
-        `Missing required environment variables: ${missing.join(", ")}\n` +
-          "Please check your .env.local file and ensure all required variables are set."
-      );
-    } else {
-      // In browser, just log warning and use fallback values
-      console.warn("Missing environment variables:", missing);
-    }
-  }
-
-  if (typeof window === "undefined" && process.env.NEXT_PUBLIC_SUPABASE_URL) {
-    try {
-      new URL(process.env.NEXT_PUBLIC_SUPABASE_URL);
-    } catch {
-      throw new Error("NEXT_PUBLIC_SUPABASE_URL must be a valid URL");
-    }
+  // Only validate on server side during build
+  if (
+    missing.length > 0 &&
+    typeof window === "undefined" &&
+    process.env.NODE_ENV === "production"
+  ) {
+    throw new Error(
+      `Missing required environment variables: ${missing.join(", ")}\n` +
+        "Please check your .env.local file and ensure all required variables are set."
+    );
   }
 
   const baseUrl =

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback,  } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
 import { Avatar } from "@/app/components/SafeImage";
@@ -44,21 +44,17 @@ export default function CommentsSection({ snippetId }: CommentsProps) {
   const [replyContent, setReplyContent] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [deletingComment, setDeletingComment] = useState<string | null>(null);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(
-    null
-  );
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
 
   const fetchComments = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Get comments without complex joins
+      // Step 1: Get comments first (simple query)
       const { data: commentsData, error: commentsError } = await supabase
         .from("comments")
-        .select(
-          "id, snippet_id, user_id, content, parent_comment_id, created_at"
-        )
+        .select("id, snippet_id, user_id, content, parent_comment_id, created_at")
         .eq("snippet_id", snippetId)
         .order("created_at", { ascending: true });
 
@@ -71,34 +67,33 @@ export default function CommentsSection({ snippetId }: CommentsProps) {
         return;
       }
 
-      // Get unique user IDs
-      const userIds = [
-        ...new Set(commentsData.map((comment) => comment.user_id)),
-      ];
+      // Step 2: Get unique user IDs from comments
+      const userIds = [...new Set(commentsData.map(comment => comment.user_id))];
 
-      // Get user profiles separately
-      const { data: profilesData } = await supabase
+      // Step 3: Get profiles for these users (separate query)
+      const { data: profilesData, error: profilesError } = await supabase
         .from("profiles")
         .select("id, username, avatar_url")
         .in("id", userIds);
 
-      // Combine comments with author info
-      const commentsWithAuthors = commentsData.map((comment) => {
-        const author = profilesData?.find(
-          (profile) => profile.id === comment.user_id
-        );
+      if (profilesError) {
+        console.warn("Could not fetch profiles:", profilesError);
+        // Continue without profiles - comments will show as "Anonymous"
+      }
+
+      // Step 4: Combine comments with profile data
+      const commentsWithAuthors = commentsData.map(comment => {
+        const profile = profilesData?.find(p => p.id === comment.user_id);
         return {
           ...comment,
-          author: author
-            ? {
-                username: author.username,
-                avatar_url: author.avatar_url,
-              }
-            : undefined,
+          author: profile ? {
+            username: profile.username,
+            avatar_url: profile.avatar_url,
+          } : undefined,
         };
       });
 
-      // Organize into threads
+      // Step 5: Organize into threads
       const threaded = organizeComments(commentsWithAuthors);
       setComments(threaded);
     } catch (err: any) {
@@ -169,7 +164,7 @@ export default function CommentsSection({ snippetId }: CommentsProps) {
 
       setNewComment("");
       toast.success("Comment posted!");
-      await fetchComments();
+      await fetchComments(); // Refetch to show new comment
     } catch (err: any) {
       console.error("Error posting comment:", err);
       toast.error("Failed to post comment");
@@ -204,7 +199,7 @@ export default function CommentsSection({ snippetId }: CommentsProps) {
       setReplyContent("");
       setReplyTo(null);
       toast.success("Reply posted!");
-      await fetchComments();
+      await fetchComments(); // Refetch to show new reply
     } catch (err: any) {
       console.error("Error posting reply:", err);
       toast.error("Failed to post reply");
@@ -214,6 +209,8 @@ export default function CommentsSection({ snippetId }: CommentsProps) {
   };
 
   const handleDeleteComment = async (commentId: string) => {
+    if (!user) return;
+
     setDeletingComment(commentId);
 
     try {
@@ -221,12 +218,12 @@ export default function CommentsSection({ snippetId }: CommentsProps) {
         .from("comments")
         .delete()
         .eq("id", commentId)
-        .eq("user_id", user?.id);
+        .eq("user_id", user.id); // Ensure user can only delete their own comments
 
       if (error) throw error;
 
       toast.success("Comment deleted!");
-      await fetchComments();
+      await fetchComments(); // Refetch to update the list
     } catch (err: any) {
       console.error("Error deleting comment:", err);
       toast.error("Failed to delete comment");
@@ -264,7 +261,6 @@ export default function CommentsSection({ snippetId }: CommentsProps) {
   const DeleteButton = ({ comment }: { comment: Comment }) => {
     if (!user || user.id !== comment.user_id) return null;
 
-    // Show delete confirmation popup
     if (showDeleteConfirm === comment.id) {
       return (
         <div className="relative">
@@ -308,7 +304,7 @@ export default function CommentsSection({ snippetId }: CommentsProps) {
           e.stopPropagation();
           setShowDeleteConfirm(comment.id);
         }}
-        className="p-1.5 text-textSecondary hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
+        className="p-1.5 text-textSecondary hover:text-red-500 transition-colors rounded"
         title="Delete comment"
         aria-label="Delete comment"
       >
@@ -330,7 +326,6 @@ export default function CommentsSection({ snippetId }: CommentsProps) {
           />
 
           <div className="flex-1 min-w-0">
-            {/* Header */}
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-semibold text-text">
@@ -345,14 +340,12 @@ export default function CommentsSection({ snippetId }: CommentsProps) {
               <DeleteButton comment={comment} />
             </div>
 
-            {/* Content */}
             <div className="text-text leading-relaxed mb-4">
               <p className="whitespace-pre-wrap break-words">
                 {comment.content}
               </p>
             </div>
 
-            {/* Reply button */}
             {user && !isReply && (
               <button
                 onClick={() =>
@@ -367,7 +360,6 @@ export default function CommentsSection({ snippetId }: CommentsProps) {
           </div>
         </div>
 
-        {/* Reply form */}
         {replyTo === comment.id && (
           <div className="mt-4 ml-12">
             <form
@@ -380,22 +372,16 @@ export default function CommentsSection({ snippetId }: CommentsProps) {
               <div className="flex gap-3">
                 <Avatar
                   src={user?.user_metadata?.avatar_url}
-                  alt={
-                    user?.user_metadata?.display_name || user?.email || "User"
-                  }
+                  alt={user?.user_metadata?.display_name || user?.email || "User"}
                   size={32}
-                  fallbackText={
-                    user?.user_metadata?.display_name || user?.email
-                  }
+                  fallbackText={user?.user_metadata?.display_name || user?.email}
                   className="flex-shrink-0"
                 />
                 <div className="flex-1">
                   <textarea
                     value={replyContent}
                     onChange={(e) => setReplyContent(e.target.value)}
-                    placeholder={`Reply to ${
-                      comment.author?.username || "this comment"
-                    }...`}
+                    placeholder={`Reply to ${comment.author?.username || "this comment"}...`}
                     className="w-full p-3 border border-textSecondary rounded-lg bg-primary text-text placeholder-textSecondary resize-none focus:border-lightGreen focus:outline-none focus:ring-2 focus:ring-lightGreen/20"
                     rows={3}
                     maxLength={1000}
@@ -410,11 +396,7 @@ export default function CommentsSection({ snippetId }: CommentsProps) {
                 <div className="flex gap-2">
                   <button
                     type="submit"
-                    disabled={
-                      submitting ||
-                      !replyContent.trim() ||
-                      replyContent.length > 1000
-                    }
+                    disabled={submitting || !replyContent.trim() || replyContent.length > 1000}
                     className="flex items-center gap-2 px-4 py-2 bg-lightGreen text-primary rounded-lg hover:bg-lightGreen/80 disabled:opacity-50 transition-colors text-sm font-medium"
                   >
                     {submitting ? (
@@ -447,7 +429,6 @@ export default function CommentsSection({ snippetId }: CommentsProps) {
         )}
       </article>
 
-      {/* Render replies */}
       {comment.replies && comment.replies.length > 0 && (
         <div className="mt-4 space-y-4">
           {comment.replies.map((reply) => renderComment(reply, true))}
@@ -494,7 +475,7 @@ export default function CommentsSection({ snippetId }: CommentsProps) {
   return (
     <div
       className="mt-8"
-      onClick={() => setShowDeleteConfirm(null)} // Close delete popup when clicking outside
+      onClick={() => setShowDeleteConfirm(null)}
     >
       <div className="flex items-center gap-2 mb-6">
         <MessageCircle className="w-5 h-5 text-textSecondary" />
@@ -503,7 +484,6 @@ export default function CommentsSection({ snippetId }: CommentsProps) {
         </h2>
       </div>
 
-      {/* New comment form */}
       {user ? (
         <form onSubmit={handleSubmitComment} className="mb-8">
           <div className="flex gap-3">
@@ -530,9 +510,7 @@ export default function CommentsSection({ snippetId }: CommentsProps) {
                 </span>
                 <button
                   type="submit"
-                  disabled={
-                    submitting || !newComment.trim() || newComment.length > 1000
-                  }
+                  disabled={submitting || !newComment.trim() || newComment.length > 1000}
                   className="flex items-center gap-2 px-6 py-2 bg-lightGreen text-primary rounded-lg hover:bg-lightGreen/80 disabled:opacity-50 transition-colors font-medium"
                 >
                   {submitting ? (
@@ -555,8 +533,7 @@ export default function CommentsSection({ snippetId }: CommentsProps) {
         <div className="mb-8 p-6 bg-brand-secondary border border-textSecondary rounded-lg text-center">
           <MessageCircle className="w-12 h-12 text-textSecondary mx-auto mb-3 opacity-50" />
           <p className="text-textSecondary mb-4">
-            Join the conversation! Sign in to share your thoughts and connect
-            with other developers.
+            Join the conversation! Sign in to share your thoughts and connect with other developers.
           </p>
           <a
             href="/login"
@@ -567,7 +544,6 @@ export default function CommentsSection({ snippetId }: CommentsProps) {
         </div>
       )}
 
-      {/* Comments list */}
       {totalComments === 0 ? (
         <div className="text-center py-16 text-textSecondary">
           <MessageCircle className="w-20 h-20 mx-auto mb-4 opacity-20" />

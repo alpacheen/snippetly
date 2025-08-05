@@ -1,38 +1,3 @@
-// export function SnippetStructuredData({
-//   snippet,
-// }: {
-//   snippet: {
-//     id: string;
-//     title: string;
-//     description?: string;
-//     language: string;
-//     created_at: string;
-//     updated_at?: string;
-//     author?: { username: string };
-//   };
-// }) {
-//   const structuredData = {
-//     "@context": "https://schema.org",
-//     "@type": "SoftwareSourceCode",
-//     name: snippet.title,
-//     description: snippet.description,
-//     programmingLanguage: snippet.language,
-//     codeRepository: `${process.env.NEXT_PUBLIC_BASE_URL}/snippets/${snippet.id}`,
-//     author: {
-//       "@type": "Person",
-//       name: snippet.author?.username || "Anonymous",
-//     },
-//     dateCreated: snippet.created_at,
-//     dateModified: snippet.updated_at,
-//   };
-
-//   return (
-//     <script
-//       type="application/ld+json"
-//       dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
-//     />
-//   );
-// }
 export function EnhancedSnippetStructuredData({
   snippet,
 }: {
@@ -49,8 +14,9 @@ export function EnhancedSnippetStructuredData({
     author?: { username: string };
   };
 }) {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://snippetly.vercel.app';
-  
+  const baseUrl =
+    process.env.NEXT_PUBLIC_BASE_URL || "https://snippetly.vercel.app";
+
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "SoftwareSourceCode",
@@ -65,18 +31,23 @@ export function EnhancedSnippetStructuredData({
     author: {
       "@type": "Person",
       name: snippet.author?.username || "Anonymous",
-      url: snippet.author ? `${baseUrl}/profile/${snippet.author.username}` : undefined,
+      url: snippet.author
+        ? `${baseUrl}/profile/${snippet.author.username}`
+        : undefined,
     },
     dateCreated: snippet.created_at,
     dateModified: snippet.updated_at || snippet.created_at,
     keywords: snippet.tags?.join(", "),
-    aggregateRating: snippet.rating && snippet.ratings_count ? {
-      "@type": "AggregateRating",
-      ratingValue: snippet.rating,
-      ratingCount: snippet.ratings_count,
-      bestRating: 5,
-      worstRating: 1,
-    } : undefined,
+    aggregateRating:
+      snippet.rating && snippet.ratings_count
+        ? {
+            "@type": "AggregateRating",
+            ratingValue: snippet.rating,
+            ratingCount: snippet.ratings_count,
+            bestRating: 5,
+            worstRating: 1,
+          }
+        : undefined,
     publisher: {
       "@type": "Organization",
       name: "Snippetly",

@@ -1,16 +1,16 @@
 "use client";
 import { useAuth } from "@/lib/auth-context";
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useState, Suspense, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { UserProfileSkeleton } from "@/app/components/LoadingSkeletons";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Loader2 } from "lucide-react";
 import dynamic from "next/dynamic";
 
-// Lazy load heavy components
+// Lazy load heavy components with better loading state
 const UserProfile = dynamic(() => import("@/app/components/UserProfile"), {
   loading: () => <UserProfileSkeleton />,
-  ssr: false
+  ssr: false,
 });
 
 interface ProfileData {
@@ -21,83 +21,79 @@ interface ProfileData {
 
 export default function ProfilePage() {
   const { user, loading: authLoading } = useAuth();
-  const [profileForm, setProfileForm] = useState<ProfileData>({ 
-    username: "", 
-    bio: "", 
-    avatar_url: "" 
+  const [profileForm, setProfileForm] = useState<ProfileData>({
+    username: "",
+    bio: "",
+    avatar_url: "",
   });
   const [saving, setSaving] = useState(false);
   const [profileExists, setProfileExists] = useState(false);
   const [profileLoading, setProfileLoading] = useState(true);
   const [showEditForm, setShowEditForm] = useState(false);
 
-  // Optimized profile fetch with caching
-  useEffect(() => {
+  // Memoized profile fetch with better error handling
+  const fetchProfile = useCallback(async () => {
     if (!user) return;
 
-    let mounted = true;
-    
-    const fetchProfile = async () => {
-      try {
-        setProfileLoading(true);
-        
-        // Use select specific fields only
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("username, bio, avatar_url")
-          .eq("id", user.id)
-          .single();
-          
-        if (!mounted) return;
-          
-        if (error && error.code !== 'PGRST116') { // Not found error is OK
-          console.error("Error fetching profile:", error);
-          toast.error("Failed to load profile");
-          return;
-        }
-        
-        if (data) {
-          setProfileForm({
-            username: data.username || "",
-            bio: data.bio || "",
-            avatar_url: data.avatar_url || "",
-          });
-          setProfileExists(true);
-        } else {
-          setShowEditForm(true);
-        }
-      } catch (error) {
-        if (mounted) {
-          console.error("Error fetching profile:", error);
-          toast.error("Unexpected error loading profile");
-        }
-      } finally {
-        if (mounted) {
-          setProfileLoading(false);
-        }
+    try {
+      setProfileLoading(true);
+
+      // Optimized query - only select needed fields
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("username, bio, avatar_url")
+        .eq("id", user.id)
+        .maybeSingle(); // Use maybeSingle to avoid errors when no profile exists
+
+      if (error) {
+        console.error("Profile fetch error:", error);
+        toast.error("Failed to load profile");
+        return;
       }
-    };
-    
-    fetchProfile();
-    
-    return () => { mounted = false; };
+
+      if (data) {
+        setProfileForm({
+          username: data.username || "",
+          bio: data.bio || "",
+          avatar_url: data.avatar_url || "",
+        });
+        setProfileExists(true);
+      } else {
+        // No profile exists, show create form
+        setShowEditForm(true);
+        setProfileExists(false);
+      }
+    } catch (error) {
+      console.error("Unexpected profile error:", error);
+      toast.error("Unexpected error loading profile");
+    } finally {
+      setProfileLoading(false);
+    }
   }, [user]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  useEffect(() => {
+    if (user && !authLoading) {
+      fetchProfile();
+    }
+  }, [user, authLoading, fetchProfile]);
+
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
     const { name, value } = e.target;
-    setProfileForm(prev => ({ ...prev, [name]: value }));
+    setProfileForm((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!user || !profileForm.username.trim()) {
       toast.error("Username is required");
       return;
     }
 
     setSaving(true);
-    
+
     try {
       const profileData = {
         username: profileForm.username.trim(),
@@ -114,31 +110,34 @@ export default function ProfilePage() {
         if (error) throw error;
         toast.success("Profile updated successfully");
       } else {
-        const { error } = await supabase
-          .from("profiles")
-          .insert({
-            id: user.id,
-            ...profileData,
-            created_at: new Date().toISOString(),
-          });
-          
+        const { error } = await supabase.from("profiles").insert({
+          id: user.id,
+          ...profileData,
+          created_at: new Date().toISOString(),
+        });
+
         if (error) throw error;
         toast.success("Profile created successfully");
         setProfileExists(true);
       }
-      
+
       setShowEditForm(false);
-    } catch (error) {
-      console.error("Error saving profile:", error);
-      toast.error("Failed to save profile");
+    } catch (error: any) {
+      console.error("Profile save error:", error);
+      toast.error(error.message || "Failed to save profile");
     } finally {
       setSaving(false);
     }
   };
 
-  // Loading state
-  if (authLoading || profileLoading) {
-    return <UserProfileSkeleton />;
+  // Show loading state
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="w-8 h-8 animate-spin text-lightGreen" />
+        <span className="ml-3 text-textSecondary">Loading...</span>
+      </div>
+    );
   }
 
   // Not logged in
@@ -160,6 +159,11 @@ export default function ProfilePage() {
     );
   }
 
+  // Still loading profile
+  if (profileLoading) {
+    return <UserProfileSkeleton />;
+  }
+
   // Show edit form
   if (showEditForm || !profileExists) {
     return (
@@ -173,12 +177,13 @@ export default function ProfilePage() {
               <button
                 onClick={() => setShowEditForm(false)}
                 className="text-textSecondary hover:text-text transition-colors"
+                disabled={saving}
               >
                 Cancel
               </button>
             )}
           </div>
-          
+
           <form onSubmit={handleSave} className="space-y-4">
             <div>
               <label htmlFor="username" className="block font-semibold mb-2">
@@ -191,23 +196,25 @@ export default function ProfilePage() {
                 value={profileForm.username}
                 onChange={handleChange}
                 placeholder="Enter your username"
-                className="w-full border px-3 py-2 rounded bg-primary text-text border-textSecondary focus:border-lightGreen focus:outline-none"
+                className="w-full border px-3 py-2 rounded bg-primary text-text border-textSecondary focus:border-lightGreen focus:outline-none disabled:opacity-50"
                 required
                 disabled={saving}
                 minLength={3}
                 maxLength={50}
               />
             </div>
-            
+
             <div>
-              <label htmlFor="bio" className="block font-semibold mb-2">Bio</label>
+              <label htmlFor="bio" className="block font-semibold mb-2">
+                Bio
+              </label>
               <textarea
                 id="bio"
                 name="bio"
                 value={profileForm.bio}
                 onChange={handleChange}
                 placeholder="Tell us about yourself..."
-                className="w-full border px-3 py-2 rounded bg-primary text-text border-textSecondary focus:border-lightGreen focus:outline-none"
+                className="w-full border px-3 py-2 rounded bg-primary text-text border-textSecondary focus:border-lightGreen focus:outline-none disabled:opacity-50"
                 rows={3}
                 disabled={saving}
                 maxLength={200}
@@ -216,9 +223,11 @@ export default function ProfilePage() {
                 {profileForm.bio.length}/200 characters
               </p>
             </div>
-            
+
             <div>
-              <label htmlFor="avatar_url" className="block font-semibold mb-2">Avatar URL</label>
+              <label htmlFor="avatar_url" className="block font-semibold mb-2">
+                Avatar URL
+              </label>
               <input
                 id="avatar_url"
                 name="avatar_url"
@@ -226,25 +235,30 @@ export default function ProfilePage() {
                 value={profileForm.avatar_url}
                 onChange={handleChange}
                 placeholder="https://example.com/your-avatar.jpg"
-                className="w-full border px-3 py-2 rounded bg-primary text-text border-textSecondary focus:border-lightGreen focus:outline-none"
+                className="w-full border px-3 py-2 rounded bg-primary text-text border-textSecondary focus:border-lightGreen focus:outline-none disabled:opacity-50"
                 disabled={saving}
               />
             </div>
-            
+
             <div className="flex gap-4 pt-4">
               <button
                 type="submit"
-                className="px-6 py-2 bg-lightGreen text-primary rounded font-semibold hover:bg-lightGreen/80 disabled:opacity-50 transition"
+                className="flex items-center gap-2 px-6 py-2 bg-lightGreen text-primary rounded font-semibold hover:bg-lightGreen/80 disabled:opacity-50 transition"
                 disabled={saving || !profileForm.username.trim()}
               >
-                {saving ? "Saving..." : (profileExists ? "Update Profile" : "Create Profile")}
+                {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+                {saving
+                  ? "Saving..."
+                  : profileExists
+                  ? "Update Profile"
+                  : "Create Profile"}
               </button>
-              
+
               {profileExists && (
                 <button
                   type="button"
                   onClick={() => setShowEditForm(false)}
-                  className="px-6 py-2 bg-textSecondary text-primary rounded font-semibold hover:bg-textSecondary/80 transition"
+                  className="px-6 py-2 bg-textSecondary text-primary rounded font-semibold hover:bg-textSecondary/80 transition disabled:opacity-50"
                   disabled={saving}
                 >
                   Cancel
@@ -257,7 +271,7 @@ export default function ProfilePage() {
     );
   }
 
-  // Show profile with lazy-loaded UserProfile component
+  // Show profile with optimized loading
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -269,7 +283,7 @@ export default function ProfilePage() {
           Edit Profile
         </button>
       </div>
-      
+
       <Suspense fallback={<UserProfileSkeleton />}>
         <UserProfile userId={user.id} isOwnProfile={true} />
       </Suspense>

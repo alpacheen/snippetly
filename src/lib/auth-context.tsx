@@ -40,42 +40,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth event:', event, session?.user?.email);
+      
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
 
       // Create profile for new users when they first sign in
-      // Check if user exists and doesn't have a profile yet
-      if (session?.user && event === "SIGNED_IN") {
+      if (session?.user && (event === "SIGNED_IN" || event === "TOKEN_REFRESHED")) {
         const { user } = session;
 
-        // Check if profile already exists
         try {
-          const { data: existingProfile } = await supabase
+          // Check if profile exists
+          const { data: existingProfile, error: checkError } = await supabase
             .from("profiles")
             .select("id")
             .eq("id", user.id)
-            .single();
+            .maybeSingle();
+
+          if (checkError) {
+            console.warn("Error checking profile:", checkError);
+            return;
+          }
 
           // Only create profile if it doesn't exist
           if (!existingProfile) {
+            console.log("Creating profile for new user:", user.id);
+            
             const username =
               user.user_metadata?.username ||
+              user.user_metadata?.name ||
               user.user_metadata?.display_name ||
               user.email?.split("@")[0] ||
               `user_${user.id.slice(0, 8)}`;
 
-            const { error } = await supabase.from("profiles").insert({
+            const { error: insertError } = await supabase.from("profiles").insert({
               id: user.id,
               username,
-              display_name: user.user_metadata?.display_name || username,
               bio: "",
               avatar_url: user.user_metadata?.avatar_url || "",
               created_at: new Date().toISOString(),
             });
 
-            if (error) {
-              console.warn("Profile creation failed:", error);
+            if (insertError) {
+              console.warn("Profile creation failed:", insertError);
+            } else {
+              console.log("Profile created successfully for:", username);
             }
           }
         } catch (error) {
@@ -88,7 +98,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    return await supabase.auth.signInWithPassword({ email, password });
+    try {
+      const result = await supabase.auth.signInWithPassword({ 
+        email: email.trim().toLowerCase(), 
+        password 
+      });
+      
+      if (result.error) {
+        console.error("Sign in error:", result.error);
+      }
+      
+      return result;
+    } catch (error) {
+      console.error("Unexpected sign in error:", error);
+      return { error: error as AuthError };
+    }
   };
 
   const signUp = async (
@@ -96,29 +120,59 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     password: string,
     displayName: string
   ) => {
-    return await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          display_name: displayName,
-          username: displayName,
+    try {
+      const result = await supabase.auth.signUp({
+        email: email.trim().toLowerCase(),
+        password,
+        options: {
+          data: {
+            display_name: displayName.trim(),
+            username: displayName.trim(),
+            name: displayName.trim(),
+          },
+          
+          emailRedirectTo: undefined,
         },
-      },
-    });
+      });
+
+      if (result.error) {
+        console.error("Sign up error:", result.error);
+      } else if (result.data.user && !result.data.user.email_confirmed_at) {
+        console.log("User created, email confirmation may be required");
+      }
+
+      return result;
+    } catch (error) {
+      console.error("Unexpected sign up error:", error);
+      return { error: error as AuthError };
+    }
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+    } catch (error) {
+      console.error("Sign out error:", error);
+    }
   };
 
   const signInWithProvider = async (provider: "github" | "google") => {
-    await supabase.auth.signInWithOAuth({
-      provider,
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback?next=/snippets`,
-      },
-    });
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: `${window.location.origin}/api/auth/callback?next=/snippets`,
+        },
+      });
+
+      if (error) {
+        console.error(`${provider} auth error:`, error);
+        throw error;
+      }
+    } catch (error) {
+      console.error("Provider auth error:", error);
+      throw error;
+    }
   };
 
   const value = {
