@@ -26,7 +26,6 @@ import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { explainCode } from "@/lib/ai";
 
-
 const SyntaxHighlighter = dynamic(
   () => import("react-syntax-highlighter").then((mod) => mod.Prism),
   {
@@ -84,11 +83,9 @@ export default function EnhancedCodeBlock({
   > | null>(null);
   const codeRef = useRef<HTMLDivElement>(null);
 
-  
   useEffect(() => {
     setMounted(true);
 
-    
     import("react-syntax-highlighter/dist/esm/styles/prism")
       .then((mod) => {
         setHighlighterStyle(mod.vscDarkPlus);
@@ -102,16 +99,20 @@ export default function EnhancedCodeBlock({
     if (!user || !snippetId) return;
 
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("favorites")
         .select("id")
         .eq("user_id", user.id)
         .eq("snippet_id", snippetId)
-        .single();
+        .maybeSingle(); // Use maybeSingle instead of single
+
+      if (error) {
+        console.warn("Error checking favorite status:", error);
+        return;
+      }
 
       setIsFavorited(!!data);
     } catch (error) {
-      
       console.warn("Error checking favorite status:", error);
     }
   }, [user, snippetId]);
@@ -120,14 +121,18 @@ export default function EnhancedCodeBlock({
     if (!snippetId) return;
 
     try {
-      const { count } = await supabase
+      const { count, error } = await supabase
         .from("favorites")
         .select("*", { count: "exact", head: true })
         .eq("snippet_id", snippetId);
 
+      if (error) {
+        console.warn("Error getting favorite count:", error);
+        return;
+      }
+
       setFavoriteCount(count || 0);
     } catch (error) {
-      
       console.warn("Error getting favorite count:", error);
     }
   }, [snippetId]);
@@ -255,44 +260,46 @@ export default function EnhancedCodeBlock({
 
   const handleExplainCode = async () => {
     if (!code.trim()) return;
-  
+
     setIsExplaining(true);
-  
+
     try {
       const result = await explainCode(code, language);
-      
+
       const formattedExplanation = `
   **What this code does:**
   ${result.explanation}
   
   **Key Points:**
-  ${result.keyPoints.map(point => `• ${point}`).join('\n')}
+  ${result.keyPoints.map((point) => `• ${point}`).join("\n")}
   
   **Suggestions for improvement:**
-  ${result.suggestions.map(suggestion => `• ${suggestion}`).join('\n')}
+  ${result.suggestions.map((suggestion) => `• ${suggestion}`).join("\n")}
   
   **Complexity Level:** ${result.complexity}
       `.trim();
-  
+
       setExplanation(formattedExplanation);
       toast.success("AI explanation generated! 🤖");
     } catch (error) {
-      console.error('AI explanation error:', error);
+      console.error("AI explanation error:", error);
       toast.error("Failed to generate explanation. Please try again.");
-      
+
       // Fallback explanation
-      setExplanation(`This ${language} code snippet demonstrates programming concepts. Consider adding comments and following best practices for better readability.`);
+      setExplanation(
+        `This ${language} code snippet demonstrates programming concepts. Consider adding comments and following best practices for better readability.`
+      );
     } finally {
       setIsExplaining(false);
     }
   };
-  
+
   // Also update the other AI feature buttons:
   // const handleOptimizeCode = async () => {
   //   toast.info("Code optimization coming soon! ⚡");
   //   // TODO: Implement when ready
   // };
-  
+
   // const handleGenerateTests = async () => {
   //   toast.info("Test generation coming soon! 🧪");
   //   // TODO: Implement when ready

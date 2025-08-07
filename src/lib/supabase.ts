@@ -1,3 +1,4 @@
+
 import { createClient } from "@supabase/supabase-js";
 import { env } from "./env";
 
@@ -10,6 +11,8 @@ export const supabase = createClient(
       autoRefreshToken: true,
       detectSessionInUrl: true,
       flowType: "pkce",
+      // Fix for production deployment
+      storageKey: 'sb-auth-token',
     },
     realtime: {
       params: {

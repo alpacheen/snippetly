@@ -28,50 +28,44 @@ export async function GET(request: NextRequest) {
       }
 
       if (data.user) {
-        // Check if user has a profile, create one if not
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("id")
-          .eq("id", data.user.id)
-          .single();
-
-        if (!profile) {
-          // Create username from user metadata or email
-          const username =
-            data.user.user_metadata?.username ||
-            data.user.user_metadata?.name ||
-            data.user.user_metadata?.display_name ||
-            data.user.email?.split("@")[0] ||
-            `user_${data.user.id.slice(0, 8)}`;
-
-          // Insert with correct field names matching your schema
-          const { error: profileError } = await supabase
+        // Create profile if needed
+        try {
+          const { data: profile } = await supabase
             .from("profiles")
-            .insert({
+            .select("id")
+            .eq("id", data.user.id)
+            .single();
+
+          if (!profile) {
+            const username =
+              data.user.user_metadata?.username ||
+              data.user.user_metadata?.name ||
+              data.user.user_metadata?.display_name ||
+              data.user.email?.split("@")[0] ||
+              `user_${data.user.id.slice(0, 8)}`;
+
+            await supabase.from("profiles").insert({
               id: data.user.id,
               username: username,
               bio: "",
               avatar_url: data.user.user_metadata?.avatar_url || "",
               created_at: new Date().toISOString(),
             });
-
-          if (profileError) {
-            console.error("Profile creation error:", profileError);
-            // Don't fail auth if profile creation fails - user can create it later
           }
+        } catch (profileError) {
+          console.warn("Profile creation failed:", profileError);
         }
 
-        // Successful authentication
-        const forwardedHost = request.headers.get("x-forwarded-host");
-        const isLocalEnv = process.env.NODE_ENV === "development";
-
-        if (isLocalEnv) {
-          return NextResponse.redirect(`${origin}${next}`);
-        } else if (forwardedHost) {
-          return NextResponse.redirect(`https://${forwardedHost}${next}`);
-        } else {
-          return NextResponse.redirect(`${origin}${next}`);
-        }
+        // Success - redirect to destination
+        const redirectUrl = `${origin}${next}`;
+        const response = NextResponse.redirect(redirectUrl);
+        
+        // Set secure headers
+        response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+        response.headers.set('Pragma', 'no-cache');
+        response.headers.set('Expires', '0');
+        
+        return response;
       }
     } catch (error) {
       console.error("Unexpected auth error:", error);
@@ -79,6 +73,6 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  
+  // No code provided
   return NextResponse.redirect(`${origin}/login?error=no_code`);
 }

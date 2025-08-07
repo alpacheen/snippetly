@@ -4,6 +4,7 @@ interface EnvironmentConfig {
   NEXT_PUBLIC_BASE_URL: string;
   SUPABASE_SERVICE_ROLE_KEY?: string;
   ANTHROPIC_API_KEY?: string;
+  RESEND_API_KEY?: string;
 }
 
 function validateEnvironment(): EnvironmentConfig {
@@ -39,6 +40,7 @@ function validateEnvironment(): EnvironmentConfig {
     NEXT_PUBLIC_BASE_URL: baseUrl,
     SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
     ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+    RESEND_API_KEY: process.env.RESEND_API_KEY,
   };
 }
 

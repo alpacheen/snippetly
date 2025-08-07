@@ -29,12 +29,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let mounted = true;
+
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    const getInitialSession = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.warn("Session error:", error);
+        }
+
+        if (mounted) {
+          setSession(session);
+          setUser(session?.user ?? null);
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error("Auth initialization error:", error);
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    getInitialSession();
 
     // Listen for auth changes
     const {
@@ -42,75 +61,70 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('Auth event:', event, session?.user?.email);
       
+      if (!mounted) return;
+
       setSession(session);
       setUser(session?.user ?? null);
-      setLoading(false);
-
-      // Create profile for new users when they first sign in
-      if (session?.user && (event === "SIGNED_IN" || event === "TOKEN_REFRESHED")) {
-        const { user } = session;
-
-        try {
-          // Check if profile exists
-          const { data: existingProfile, error: checkError } = await supabase
-            .from("profiles")
-            .select("id")
-            .eq("id", user.id)
-            .maybeSingle();
-
-          if (checkError) {
-            console.warn("Error checking profile:", checkError);
-            return;
-          }
-
-          // Only create profile if it doesn't exist
-          if (!existingProfile) {
-            console.log("Creating profile for new user:", user.id);
-            
-            const username =
-              user.user_metadata?.username ||
-              user.user_metadata?.name ||
-              user.user_metadata?.display_name ||
-              user.email?.split("@")[0] ||
-              `user_${user.id.slice(0, 8)}`;
-
-            const { error: insertError } = await supabase.from("profiles").insert({
-              id: user.id,
-              username,
-              bio: "",
-              avatar_url: user.user_metadata?.avatar_url || "",
-              created_at: new Date().toISOString(),
-            });
-
-            if (insertError) {
-              console.warn("Profile creation failed:", insertError);
-            } else {
-              console.log("Profile created successfully for:", username);
-            }
-          }
-        } catch (error) {
-          console.warn("Profile check/creation error:", error);
-        }
+      
+      // Handle sign out - clear everything
+      if (event === 'SIGNED_OUT') {
+        setSession(null);
+        setUser(null);
       }
+
+      // Create profile for confirmed users
+      if (session?.user && (event === "SIGNED_IN" || event === "TOKEN_REFRESHED")) {
+        await createUserProfile(session.user);
+      }
+
+      setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
+
+  const createUserProfile = async (user: User) => {
+    try {
+      // Check if profile exists
+      const { data: existingProfile } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (!existingProfile) {
+        const username =
+          user.user_metadata?.username ||
+          user.user_metadata?.name ||
+          user.user_metadata?.display_name ||
+          user.email?.split("@")[0] ||
+          `user_${user.id.slice(0, 8)}`;
+
+        await supabase.from("profiles").insert({
+          id: user.id,
+          username,
+          bio: "",
+          avatar_url: user.user_metadata?.avatar_url || "",
+          created_at: new Date().toISOString(),
+        });
+      }
+    } catch (error) {
+      console.warn("Profile creation error:", error);
+    }
+  };
 
   const signIn = async (email: string, password: string) => {
     try {
-      const result = await supabase.auth.signInWithPassword({ 
+      const { data, error } = await supabase.auth.signInWithPassword({ 
         email: email.trim().toLowerCase(), 
         password 
       });
       
-      if (result.error) {
-        console.error("Sign in error:", result.error);
-      }
-      
-      return result;
+      return { error };
     } catch (error) {
-      console.error("Unexpected sign in error:", error);
       return { error: error as AuthError };
     }
   };
@@ -121,7 +135,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     displayName: string
   ) => {
     try {
-      const result = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email: email.trim().toLowerCase(),
         password,
         options: {
@@ -130,29 +144,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             username: displayName.trim(),
             name: displayName.trim(),
           },
-          
-          emailRedirectTo: undefined,
+          emailRedirectTo: `${window.location.origin}/api/auth/callback?next=/snippets`,
         },
       });
 
-      if (result.error) {
-        console.error("Sign up error:", result.error);
-      } else if (result.data.user && !result.data.user.email_confirmed_at) {
-        console.log("User created, email confirmation may be required");
-      }
-
-      return result;
+      return { error };
     } catch (error) {
-      console.error("Unexpected sign up error:", error);
       return { error: error as AuthError };
     }
   };
 
   const signOut = async () => {
     try {
-      await supabase.auth.signOut();
+      // Clear local state immediately
+      setLoading(true);
+      
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        console.error("Sign out error:", error);
+      }
+      
+      // Force clear state
+      setSession(null);
+      setUser(null);
+      setLoading(false);
+      
+      // Redirect to home
+      window.location.href = '/';
     } catch (error) {
       console.error("Sign out error:", error);
+      // Still clear state on error
+      setSession(null);
+      setUser(null);
+      setLoading(false);
     }
   };
 
@@ -165,10 +190,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         },
       });
 
-      if (error) {
-        console.error(`${provider} auth error:`, error);
-        throw error;
-      }
+      if (error) throw error;
     } catch (error) {
       console.error("Provider auth error:", error);
       throw error;

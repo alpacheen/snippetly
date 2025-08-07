@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Menu, X, Sun, Moon, User, LogOut } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "next/navigation";
@@ -11,44 +11,94 @@ const navLinks = [
   { href: "/snippets/create", label: "Create" },
 ];
 
-
 function useTheme() {
   const [isDark, setIsDark] = useState(true);
+
+  useEffect(() => {
+    // Initialize theme from localStorage or system preference
+    const stored = localStorage.getItem("theme");
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const shouldBeDark = stored ? stored === "dark" : prefersDark;
+    
+    setIsDark(shouldBeDark);
+    document.documentElement.classList.toggle("light", !shouldBeDark);
+  }, []);
 
   const toggleTheme = () => {
     const newTheme = !isDark;
     setIsDark(newTheme);
-
-    if (typeof window !== "undefined") {
-      localStorage.setItem("theme", newTheme ? "dark" : "light");
-      document.documentElement.classList.toggle("light", !newTheme);
-    }
+    localStorage.setItem("theme", newTheme ? "dark" : "light");
+    document.documentElement.classList.toggle("light", !newTheme);
   };
 
   return { isDark, toggleTheme };
 }
 
+// Safe Avatar Component
+function UserAvatar({ user }: { user: any }) {
+  const [imageError, setImageError] = useState(false);
+  
+  const getInitials = (email: string) => {
+    return email?.charAt(0)?.toUpperCase() || "U";
+  };
+
+  const avatarUrl = user?.user_metadata?.avatar_url;
+  const shouldShowImage = avatarUrl && !imageError;
+
+  return (
+    <div className="w-10 h-10 rounded-full bg-lightGreen flex items-center justify-center text-primary font-bold hover:bg-lightGreen/80 transition-colors overflow-hidden">
+      {shouldShowImage ? (
+        <img 
+          src={avatarUrl} 
+          alt="Profile" 
+          className="w-full h-full object-cover"
+          onError={() => setImageError(true)}
+          onLoad={() => setImageError(false)}
+        />
+      ) : (
+        <span>{getInitials(user?.email || "")}</span>
+      )}
+    </div>
+  );
+}
+
 export default function NavBar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
-  const { user, signOut } = useAuth();
+  const { user, signOut, loading } = useAuth();
   const router = useRouter();
   const { isDark, toggleTheme } = useTheme();
 
   const handleLogout = async () => {
-    await signOut();
-    setProfileMenuOpen(false);
-    router.push("/");
+    try {
+      setProfileMenuOpen(false);
+      setMobileOpen(false);
+      await signOut();
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
   };
 
-  const getInitials = (email: string) => {
-    return email.charAt(0).toUpperCase();
-  };
+  // Close menus when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (!target.closest('[data-dropdown]')) {
+        setProfileMenuOpen(false);
+      }
+      if (!target.closest('[data-mobile-menu]')) {
+        setMobileOpen(false);
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
 
   return (
-    <nav className="bg-primary border-b border-textSecondary text-text relative">
+    <nav className="bg-primary border-b border-textSecondary text-text relative z-40">
       <div className="container mx-auto flex items-center justify-between px-4 py-3">
-        <Link href="/" className="text-2xl font-bold tracking-tight">
+        <Link href="/" className="text-2xl font-bold tracking-tight hover:text-lightGreen transition-colors">
           Snippetly
         </Link>
 
@@ -58,7 +108,7 @@ export default function NavBar() {
             <Link
               key={link.href}
               href={link.href}
-              className="hover:text-lightGreen transition"
+              className="hover:text-lightGreen transition-colors"
             >
               {link.label}
             </Link>
@@ -67,7 +117,7 @@ export default function NavBar() {
           {/* Theme Toggle - Desktop */}
           <button
             onClick={toggleTheme}
-            className="p-2 rounded-lg bg-primary hover:bg-text/70 transition-colors cursor-pointer"
+            className="p-2 rounded-lg hover:bg-textSecondary/10 transition-colors"
             title={`Switch to ${isDark ? "light" : "dark"} mode`}
           >
             {isDark ? (
@@ -77,64 +127,65 @@ export default function NavBar() {
             )}
           </button>
 
-          {user ? (
-            <div className="relative">
+          {loading ? (
+            <div className="w-10 h-10 rounded-full bg-textSecondary/20 animate-pulse"></div>
+          ) : user ? (
+            <div className="relative" data-dropdown="true">
               <button
-                onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-                className="w-10 h-10 rounded-full bg-lightGreen flex items-center justify-center text-primary font-bold hover:bg-lightGreen/80 transition-colors cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setProfileMenuOpen(!profileMenuOpen);
+                }}
+                className="focus:outline-none focus:ring-2 focus:ring-lightGreen rounded-full"
                 title="Profile menu"
               >
-                {getInitials(user.email || "U")}
+                <UserAvatar user={user} />
               </button>
 
               {/* Profile Dropdown */}
               {profileMenuOpen && (
-                <>
-                  {/* Backdrop */}
-                  <div
-                    className="fixed inset-0 z-10"
-                    onClick={() => setProfileMenuOpen(false)}
-                  />
-                  {/* Menu */}
-                  <div className="absolute right-0 mt-2 w-48 bg-primary border border-textSecondary rounded-lg shadow-lg z-20">
-                    <div className="p-3 border-b border-textSecondary">
-                      
-                    </div>
-                    <div className="py-2">
-                      <Link
-                        href="/profile"
-                        onClick={() => setProfileMenuOpen(false)}
-                        className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-textSecondary/10 transition-colors"
-                      >
-                        <User className="w-4 h-4" />
-                        Profile
-                      </Link>
-                      <button
-                        onClick={handleLogout}
-                        className="w-full flex items-center gap-2 px-4 py-2 text-sm hover:bg-textSecondary/10 transition-colors text-left"
-                      >
-                        <LogOut className="w-4 h-4" />
-                        Logout
-                      </button>
-                    </div>
+                <div className="absolute right-0 mt-2 w-48 bg-primary border border-textSecondary rounded-lg shadow-xl z-50">
+                  <div className="p-3 border-b border-textSecondary">
+                    <p className="text-sm font-medium truncate">{user.email}</p>
                   </div>
-                </>
+                  <div className="py-2">
+                    <Link
+                      href="/profile"
+                      onClick={() => setProfileMenuOpen(false)}
+                      className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-textSecondary/10 transition-colors"
+                    >
+                      <User className="w-4 h-4" />
+                      Profile
+                    </Link>
+                    <button
+                      onClick={handleLogout}
+                      className="w-full flex items-center gap-2 px-4 py-2 text-sm hover:bg-textSecondary/10 transition-colors text-left text-red-400 hover:text-red-300"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      Sign Out
+                    </button>
+                  </div>
+                </div>
               )}
             </div>
           ) : (
             <Link
               href="/login"
-              className="px-4 py-2 rounded bg-lightGreen text-primary hover:bg-lightGreen/80 transition font-medium"
+              className="px-4 py-2 rounded bg-lightGreen text-primary hover:bg-lightGreen/80 transition-colors font-medium"
             >
-              Login
+              Sign In
             </Link>
           )}
         </div>
 
         {/* Mobile menu button */}
         <button
-          className="md:hidden text-text focus:outline-none"
-          onClick={() => setMobileOpen(!mobileOpen)}
+          className="md:hidden text-text focus:outline-none z-50"
+          onClick={(e) => {
+            e.stopPropagation();
+            setMobileOpen(!mobileOpen);
+          }}
+          data-mobile-menu="true"
           aria-label="Toggle menu"
         >
           {mobileOpen ? <X size={28} /> : <Menu size={28} />}
@@ -143,58 +194,64 @@ export default function NavBar() {
 
       {/* Mobile menu */}
       {mobileOpen && (
-        <div className="md:hidden bg-primary border-t border-textSecondary px-4 pb-4 space-y-2">
+        <div className="md:hidden bg-primary border-t border-textSecondary px-4 pb-4 space-y-2 absolute w-full z-30" data-mobile-menu="true">
           {navLinks.map((link) => (
             <Link
               key={link.href}
               href={link.href}
-              className="block py-2 hover:text-lightGreen transition"
+              className="block py-2 hover:text-lightGreen transition-colors"
               onClick={() => setMobileOpen(false)}
             >
               {link.label}
             </Link>
           ))}
 
-          {user ? (
+          {/* Mobile Theme Toggle */}
+          <button
+            onClick={toggleTheme}
+            className="flex items-center gap-2 py-2 text-textSecondary hover:text-text transition-colors w-full text-left"
+          >
+            {isDark ? (
+              <Sun className="w-4 h-4 text-lightGreen" />
+            ) : (
+              <Moon className="w-4 h-4 text-darkGreen" />
+            )}
+            Switch Theme
+          </button>
+
+          {loading ? (
+            <div className="py-2">
+              <div className="h-8 bg-textSecondary/20 rounded animate-pulse"></div>
+            </div>
+          ) : user ? (
             <>
+              <div className="flex items-center gap-2 py-2 text-sm text-textSecondary">
+                <UserAvatar user={user} />
+                <span className="truncate">{user.email}</span>
+              </div>
               <Link
                 href="/profile"
-                className="flex items-center gap-2 py-2 hover:text-lightGreen transition"
+                className="flex items-center gap-2 py-2 hover:text-lightGreen transition-colors"
                 onClick={() => setMobileOpen(false)}
               >
                 <User className="w-4 h-4" />
                 Profile
               </Link>
               <button
-                className="flex items-center gap-2 py-2 text-textSecondary hover:text-text transition w-full text-left"
-                onClick={() => {
-                  handleLogout();
-                  setMobileOpen(false);
-                }}
+                className="flex items-center gap-2 py-2 text-red-400 hover:text-red-300 transition-colors w-full text-left"
+                onClick={handleLogout}
               >
                 <LogOut className="w-4 h-4" />
-                Logout
-              </button>
-              {/* Mobile Theme Toggle */}
-              <button
-                onClick={toggleTheme}
-                className="flex items-center gap-2 py-2 text-textSecondary hover:text-text transition cursor-pointer"
-              >
-                {isDark ? (
-                  <Sun className="w-4 h-4 text-lightGreen" />
-                ) : (
-                  <Moon className="w-4 h-4 text-darkGreen" />
-                )}
-                
+                Sign Out
               </button>
             </>
           ) : (
             <Link
               href="/login"
-              className="block py-2 hover:text-lightGreen transition"
+              className="block py-2 hover:text-lightGreen transition-colors"
               onClick={() => setMobileOpen(false)}
             >
-              Login
+              Sign In
             </Link>
           )}
         </div>
