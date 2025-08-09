@@ -38,7 +38,7 @@ class ImageErrorBoundary extends React.Component<
       };
     }
 
-    // Re-throw non-image errors
+    
     throw error;
   }
 

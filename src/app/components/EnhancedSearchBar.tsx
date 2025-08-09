@@ -13,7 +13,7 @@ interface SearchSuggestion {
   id?: string;
 }
 
-// Cache for suggestions to avoid repeated API calls
+
 const suggestionCache = new Map<string, SearchSuggestion[]>();
 
 export default function EnhancedSearchBar() {
@@ -27,10 +27,10 @@ export default function EnhancedSearchBar() {
   const suggestionsRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Debounce the query to reduce API calls
+  
   const debouncedQuery = useDebounce(query, 300);
 
-  // Memoized popular suggestions
+  
   const popularSuggestions = useMemo(
     () => [
       { type: "language" as const, value: "JavaScript" },
@@ -50,14 +50,14 @@ export default function EnhancedSearchBar() {
         return;
       }
 
-      // Check cache first
+      
       const cacheKey = debouncedQuery.toLowerCase();
       if (suggestionCache.has(cacheKey)) {
         setSuggestions(suggestionCache.get(cacheKey)!);
         return;
       }
 
-      // Cancel previous request
+      
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
@@ -105,7 +105,7 @@ export default function EnhancedSearchBar() {
           });
         }
 
-        // Cache the results
+        
         const finalSuggestions = suggestions.slice(0, 8);
         suggestionCache.set(cacheKey, finalSuggestions);
         setSuggestions(finalSuggestions);
@@ -183,7 +183,7 @@ export default function EnhancedSearchBar() {
     }
   };
 
-  // Close suggestions when clicking outside
+  
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (

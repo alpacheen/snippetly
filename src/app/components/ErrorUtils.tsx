@@ -50,7 +50,7 @@ export function handleSupabaseError(
 
   if (error && typeof error === "object" && "message" in error) {
     const errorMessage = (error as { message: string }).message;
-    // Common Supabase error patterns
+    
     if (errorMessage.includes("duplicate key value")) {
       message = "This item already exists";
       code = "DUPLICATE_ENTRY";
@@ -108,7 +108,7 @@ export function handleNetworkError(error: unknown): AppError {
   return appError;
 }
 
-// Show user-friendly error messages
+
 export function showError(
   error: Error | AppError | string,
   fallbackMessage?: string
@@ -118,7 +118,7 @@ export function showError(
   if (typeof error === "string") {
     message = error;
   } else if ("code" in error && error.code) {
-    // Use user-friendly messages for known error codes
+    
     message = getUserFriendlyMessage(error.code) || error.message;
   } else {
     message =
@@ -128,7 +128,7 @@ export function showError(
   toast.error(message);
 }
 
-// Get user-friendly error messages
+
 function getUserFriendlyMessage(code: string): string | null {
   const messages: Record<string, string> = {
     PERMISSION_DENIED: "You do not have permission to perform this action",
@@ -145,7 +145,7 @@ function getUserFriendlyMessage(code: string): string | null {
   return messages[code] || null;
 }
 
-// Async error handler wrapper
+
 export function withErrorHandling<T extends unknown[], R>(
   fn: (...args: T) => Promise<R>,
   context?: string
@@ -176,7 +176,7 @@ export function withErrorHandling<T extends unknown[], R>(
   };
 }
 
-// Retry mechanism for failed operations
+
 export async function withRetry<T>(
   operation: () => Promise<T>,
   maxRetries: number = 3,
@@ -194,7 +194,7 @@ export async function withRetry<T>(
         throw lastError;
       }
 
-      // Wait before retrying
+      
       await new Promise((resolve) => setTimeout(resolve, delay * attempt));
     }
   }
@@ -202,7 +202,7 @@ export async function withRetry<T>(
   throw lastError!;
 }
 
-// Form validation helpers
+
 export interface ValidationError {
   field: string;
   message: string;
@@ -280,7 +280,7 @@ export function validateForm(
   return errors;
 }
 
-// Show validation errors
+
 export function showValidationErrors(errors: ValidationError[]) {
   if (errors.length === 1) {
     toast.error(errors[0].message);
@@ -289,7 +289,7 @@ export function showValidationErrors(errors: ValidationError[]) {
   }
 }
 
-// Development helpers
+
 export function debugLog(message: string, data?: unknown) {
   if (process.env.NODE_ENV === "development") {
     console.log(`[DEBUG] ${message}`, data);

@@ -24,60 +24,66 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
   if (!isOpen) return null;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!formData.email.trim() || !formData.password.trim()) {
-      toast.error('Please fill in all required fields');
-      return;
-    }
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  
+  if (!formData.email.trim() || !formData.password.trim()) {
+    toast.error('Please fill in all required fields');
+    return;
+  }
 
-    if (isSignUp && !formData.displayName.trim()) {
-      toast.error('Please enter your display name');
-      return;
-    }
+  if (isSignUp && !formData.displayName.trim()) {
+    toast.error('Please enter your display name');
+    return;
+  }
 
-    setLoading(true);
+  setLoading(true);
 
-    try {
-      if (isSignUp) {
-        const { error } = await signUp(formData.email, formData.password, formData.displayName);
-        
-        if (error) {
-          if (error.message.includes('User already registered')) {
-            toast.error('An account with this email already exists. Try signing in instead.');
-            setIsSignUp(false);
-          } else {
-            toast.error(error.message);
-          }
+  try {
+    if (isSignUp) {
+      const { error } = await signUp(formData.email, formData.password, formData.displayName);
+      
+      if (error) {
+        // Better error handling
+        if (error.message.includes('User already registered')) {
+          toast.error('An account with this email already exists. Try signing in instead.');
+          setIsSignUp(false);
+        } else if (error.message.includes('Password should be at least')) {
+          toast.error('Password must be at least 6 characters long');
+        } else if (error.message.includes('Invalid email')) {
+          toast.error('Please enter a valid email address');
         } else {
-          setNeedsConfirmation(true);
-          toast.success('Account created! Please check your email to confirm your account.');
+          toast.error(error.message);
         }
       } else {
-        const { error } = await signIn(formData.email, formData.password);
-        
-        if (error) {
-          if (error.message.includes('Email not confirmed')) {
-            setNeedsConfirmation(true);
-            toast.error('Please check your email and confirm your account first.');
-          } else if (error.message.includes('Invalid login credentials')) {
-            toast.error('Invalid email or password. Please try again.');
-          } else {
-            toast.error(error.message);
-          }
-        } else {
-          toast.success('Signed in successfully!');
-          onClose();
-        }
+        setNeedsConfirmation(true);
+        toast.success('Account created! Please check your email to confirm your account.');
       }
-    } catch (error) {
-      toast.error('An unexpected error occurred. Please try again.');
-      console.error('Auth error:', error);
-    } finally {
-      setLoading(false);
+    } else {
+      const { error } = await signIn(formData.email, formData.password);
+      
+      if (error) {
+        if (error.message.includes('Email not confirmed')) {
+          setNeedsConfirmation(true);
+          toast.error('Please check your email and confirm your account first.');
+        } else if (error.message.includes('Invalid login credentials')) {
+          toast.error('Invalid email or password. Please try again.');
+        } else {
+          toast.error(error.message);
+        }
+      } else {
+        toast.success('Signed in successfully!');
+        onClose();
+      }
     }
-  };
+  } catch (error) {
+    toast.error('An unexpected error occurred. Please try again.');
+    console.error('Auth error:', error);
+  } finally {
+    setLoading(false);
+  }
+};
+  
 
   const handleProviderSignIn = async (provider: 'github' | 'google') => {
     try {

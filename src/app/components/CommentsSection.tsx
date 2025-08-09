@@ -81,7 +81,7 @@ export default function CommentsSection({ snippetId }: CommentsProps) {
         // Continue without profiles - comments will show as "Anonymous"
       }
 
-      // Step 4: Combine comments with profile data
+      
       const commentsWithAuthors = commentsData.map(comment => {
         const profile = profilesData?.find(p => p.id === comment.user_id);
         return {
@@ -93,7 +93,7 @@ export default function CommentsSection({ snippetId }: CommentsProps) {
         };
       });
 
-      // Step 5: Organize into threads
+      
       const threaded = organizeComments(commentsWithAuthors);
       setComments(threaded);
     } catch (err: any) {
@@ -108,12 +108,12 @@ export default function CommentsSection({ snippetId }: CommentsProps) {
     const commentMap = new Map<string, Comment>();
     const rootComments: Comment[] = [];
 
-    // First pass: create all comments
+    
     flatComments.forEach((comment) => {
       commentMap.set(comment.id, { ...comment, replies: [] });
     });
 
-    // Second pass: organize into threads
+    
     flatComments.forEach((comment) => {
       const processedComment = commentMap.get(comment.id)!;
 
@@ -164,7 +164,7 @@ export default function CommentsSection({ snippetId }: CommentsProps) {
 
       setNewComment("");
       toast.success("Comment posted!");
-      await fetchComments(); // Refetch to show new comment
+      await fetchComments(); 
     } catch (err: any) {
       console.error("Error posting comment:", err);
       toast.error("Failed to post comment");
@@ -199,7 +199,7 @@ export default function CommentsSection({ snippetId }: CommentsProps) {
       setReplyContent("");
       setReplyTo(null);
       toast.success("Reply posted!");
-      await fetchComments(); // Refetch to show new reply
+      await fetchComments(); 
     } catch (err: any) {
       console.error("Error posting reply:", err);
       toast.error("Failed to post reply");
@@ -218,12 +218,12 @@ export default function CommentsSection({ snippetId }: CommentsProps) {
         .from("comments")
         .delete()
         .eq("id", commentId)
-        .eq("user_id", user.id); // Ensure user can only delete their own comments
+        .eq("user_id", user.id); 
 
       if (error) throw error;
 
       toast.success("Comment deleted!");
-      await fetchComments(); // Refetch to update the list
+      await fetchComments();
     } catch (err: any) {
       console.error("Error deleting comment:", err);
       toast.error("Failed to delete comment");

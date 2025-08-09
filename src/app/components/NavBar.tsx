@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Menu, X, Sun, Moon, User, LogOut } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "next/navigation";
@@ -15,7 +15,7 @@ function useTheme() {
   const [isDark, setIsDark] = useState(true);
 
   useEffect(() => {
-    // Initialize theme from localStorage or system preference
+    
     const stored = localStorage.getItem("theme");
     const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
     const shouldBeDark = stored ? stored === "dark" : prefersDark;
@@ -34,9 +34,10 @@ function useTheme() {
   return { isDark, toggleTheme };
 }
 
-// Safe Avatar Component
+
 function UserAvatar({ user }: { user: any }) {
   const [imageError, setImageError] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   
   const getInitials = (email: string) => {
     return email?.charAt(0)?.toUpperCase() || "U";
@@ -45,23 +46,38 @@ function UserAvatar({ user }: { user: any }) {
   const avatarUrl = user?.user_metadata?.avatar_url;
   const shouldShowImage = avatarUrl && !imageError;
 
+  const handleImageLoad = useCallback(() => {
+    setIsLoading(false);
+    setImageError(false);
+  }, []);
+
+  const handleImageError = useCallback(() => {
+    setIsLoading(false);
+    setImageError(true);
+  }, []);
+
   return (
-    <div className="w-10 h-10 rounded-full bg-lightGreen flex items-center justify-center text-primary font-bold hover:bg-lightGreen/80 transition-colors overflow-hidden">
+    <div className="w-10 h-10 rounded-full bg-lightGreen flex items-center justify-center text-primary font-bold hover:bg-lightGreen/80 transition-colors overflow-hidden relative">
       {shouldShowImage ? (
-        <img 
-          src={avatarUrl} 
-          alt="Profile" 
-          className="w-full h-full object-cover"
-          onError={() => setImageError(true)}
-          onLoad={() => setImageError(false)}
-        />
+        <>
+          {isLoading && (
+            <div className="absolute inset-0 bg-lightGreen/20 animate-pulse" />
+          )}
+          <img 
+            src={avatarUrl} 
+            alt="Profile" 
+            className="w-full h-full object-cover"
+            onError={handleImageError}
+            onLoad={handleImageLoad}
+            style={{ display: isLoading ? 'none' : 'block' }}
+          />
+        </>
       ) : (
         <span>{getInitials(user?.email || "")}</span>
       )}
     </div>
   );
 }
-
 export default function NavBar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);

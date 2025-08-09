@@ -1,12 +1,12 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { User, ImageOff } from "lucide-react";
 
 const ALLOWED_DOMAINS = [
   "avatars.githubusercontent.com",
-  "lh3.googleusercontent.com", 
+  "lh3.googleusercontent.com",
   "images.unsplash.com",
   "img.freepik.com",
   "via.placeholder.com",
@@ -17,27 +17,13 @@ const ALLOWED_DOMAINS = [
 
 function isValidImageUrl(url: string): boolean {
   if (!url || typeof url !== "string") return false;
-  
+
   try {
     const parsedUrl = new URL(url);
     return ALLOWED_DOMAINS.includes(parsedUrl.hostname);
   } catch {
     return false;
   }
-}
-
-function generateInitials(name: string): string {
-  if (!name) return "?";
-  
-  const words = name.trim().split(/\s+/);
-  if (words.length === 1) {
-    return words[0].charAt(0).toUpperCase();
-  }
-  
-  return words
-    .slice(0, 2)
-    .map((word) => word.charAt(0).toUpperCase())
-    .join("");
 }
 
 interface SafeImageProps {
@@ -64,10 +50,20 @@ function SafeImage({
   const [imageError, setImageError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Show fallback if no src, invalid URL, or error occurred
+  const handleImageError = useCallback(() => {
+    setImageError(true);
+    setIsLoading(false);
+  }, []);
+
+  const handleImageLoad = useCallback(() => {
+    setImageError(false);
+    setIsLoading(false);
+  }, []);
+
+  
   if (!src || !isValidImageUrl(src) || imageError) {
     const displayText = fallbackText || generateInitials(alt);
-    
+
     return (
       <div
         className={`flex items-center justify-center bg-lightGreen text-primary rounded-full ${className}`}
@@ -75,7 +71,7 @@ function SafeImage({
         role="img"
         aria-label={alt}
       >
-        {displayText && displayText !== '?' ? (
+        {displayText && displayText !== "?" ? (
           <span className="font-bold text-lg select-none">
             {displayText.charAt(0).toUpperCase()}
           </span>
@@ -87,36 +83,50 @@ function SafeImage({
   }
 
   return (
-    <div className={`relative overflow-hidden ${className}`} style={{ width, height }}>
+    <div
+      className={`relative overflow-hidden ${className}`}
+      style={{ width, height }}
+    >
       {/* Loading placeholder */}
       {isLoading && (
-        <div
-          className="absolute inset-0 flex items-center justify-center bg-lightGreen animate-pulse"
-          style={{ width, height }}
-        >
-          <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        <div className="absolute inset-0 flex items-center justify-center bg-lightGreen/20 animate-pulse">
+          <div className="w-6 h-6 border-2 border-lightGreen border-t-transparent rounded-full animate-spin" />
         </div>
       )}
-      
+
       {/* Actual image */}
       <Image
         src={src}
         alt={alt}
         width={width}
         height={height}
-        className={`${isLoading ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200 object-cover`}
-        onError={() => {
-          setImageError(true);
-          setIsLoading(false);
-        }}
-        onLoad={() => setIsLoading(false)}
+        className={`${
+          isLoading ? "opacity-0" : "opacity-100"
+        } transition-opacity duration-200 object-cover`}
+        onError={handleImageError}
+        onLoad={handleImageLoad}
         priority={priority}
+        unoptimized={false}
       />
     </div>
   );
 }
 
-// Avatar-specific component
+function generateInitials(name: string): string {
+  if (!name) return "?";
+
+  const words = name.trim().split(/\s+/);
+  if (words.length === 1) {
+    return words[0].charAt(0).toUpperCase();
+  }
+
+  return words
+    .slice(0, 2)
+    .map((word) => word.charAt(0).toUpperCase())
+    .join("");
+}
+
+
 interface AvatarProps {
   src?: string;
   alt: string;
@@ -133,7 +143,7 @@ export function Avatar({
   fallbackText,
 }: AvatarProps) {
   const displayFallback = fallbackText || generateInitials(alt);
-  
+
   return (
     <SafeImage
       src={src}
@@ -143,34 +153,6 @@ export function Avatar({
       className={`rounded-full ${className}`}
       fallbackIcon={User}
       fallbackText={displayFallback}
-    />
-  );
-}
-
-// Image with fallback for general use
-interface ImageWithFallbackProps {
-  src?: string;
-  alt: string;
-  width: number;
-  height: number;
-  className?: string;
-}
-
-export function ImageWithFallback({
-  src,
-  alt,
-  width,
-  height,
-  className = "",
-}: ImageWithFallbackProps) {
-  return (
-    <SafeImage
-      src={src}
-      alt={alt}
-      width={width}
-      height={height}
-      className={`object-cover ${className}`}
-      fallbackIcon={ImageOff}
     />
   );
 }

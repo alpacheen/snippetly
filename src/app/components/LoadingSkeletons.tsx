@@ -1,6 +1,6 @@
 import React from 'react';
 
-// Generic Skeleton component
+
 export function Skeleton({ 
   className = '', 
   width, 
@@ -40,7 +40,7 @@ export function SnippetListSkeleton({ count = 6 }: { count?: number }) {
   );
 }
 
-// Snippet Detail Skeleton
+
 export function SnippetDetailSkeleton() {
   return (
     <article className="prose lg:prose-xl max-w-4xl mx-auto py-8">
@@ -65,7 +65,7 @@ export function SnippetDetailSkeleton() {
   );
 }
 
-// User Profile Skeleton
+
 export function UserProfileSkeleton() {
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -97,7 +97,7 @@ export function UserProfileSkeleton() {
   );
 }
 
-// Comments Section Skeleton
+
 export function CommentsSkeleton({ count = 3 }: { count?: number }) {
   return (
     <div className="mt-8">

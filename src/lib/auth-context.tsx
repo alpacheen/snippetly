@@ -135,6 +135,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     displayName: string
   ) => {
     try {
+      // Validate inputs first
+      if (!email || !password || !displayName) {
+        return { error: { message: "All fields are required" } as AuthError };
+      }
+  
+      if (password.length < 6) {
+        return { error: { message: "Password must be at least 6 characters" } as AuthError };
+      }
+  
       const { data, error } = await supabase.auth.signUp({
         email: email.trim().toLowerCase(),
         password,
@@ -144,12 +153,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             username: displayName.trim(),
             name: displayName.trim(),
           },
-          emailRedirectTo: `${window.location.origin}/api/auth/callback?next=/snippets`,
+          // Remove redirect_to for now to avoid the callback issue
+          // emailRedirectTo: `${window.location.origin}/api/auth/callback?next=/snippets`,
         },
       });
-
+  
+      // Log the response for debugging
+      console.log("Signup response:", { data, error });
+  
       return { error };
     } catch (error) {
+      console.error("Signup error:", error);
       return { error: error as AuthError };
     }
   };
@@ -183,14 +197,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signInWithProvider = async (provider: "github" | "google") => {
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
+      console.log(`Initiating ${provider} OAuth flow`);
+      
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
           redirectTo: `${window.location.origin}/api/auth/callback?next=/snippets`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
         },
       });
-
-      if (error) throw error;
+  
+      if (error) {
+        console.error(`${provider} OAuth error:`, error);
+        throw error;
+      }
+  
+      console.log(`${provider} OAuth initiated successfully`);
     } catch (error) {
       console.error("Provider auth error:", error);
       throw error;
