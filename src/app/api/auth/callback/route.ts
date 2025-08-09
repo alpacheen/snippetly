@@ -8,39 +8,50 @@ export async function GET(request: NextRequest) {
   const error = searchParams.get("error");
   const errorDescription = searchParams.get("error_description");
 
-  console.log("Callback received:", { code: !!code, error, errorDescription });
+  console.log("OAuth callback received:", { 
+    hasCode: !!code, 
+    error, 
+    errorDescription,
+    next 
+  });
 
- 
+  // Handle OAuth errors
   if (error) {
     console.error("OAuth error:", error, errorDescription);
+    const errorMessage = errorDescription || error;
     return NextResponse.redirect(
-      `${origin}/login?error=${encodeURIComponent(errorDescription || error)}`
+      `${origin}/login?error=${encodeURIComponent(errorMessage)}`
     );
   }
 
-  
+  // Handle successful OAuth flow
   if (code) {
     try {
-      console.log("Attempting to exchange code for session...");
+      console.log("Exchanging code for session...");
       
-     
+      // Exchange the code for a session
       const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
 
       if (exchangeError) {
         console.error("Code exchange error:", exchangeError);
         
-        
-        if (exchangeError.message?.includes('code verifier')) {
-          return NextResponse.redirect(`${origin}/login?error=oauth_flow_error&message=OAuth flow interrupted. Please try signing in again.`);
+        // Handle specific PKCE errors
+        if (exchangeError.message?.includes('code verifier') || 
+            exchangeError.message?.includes('PKCE')) {
+          return NextResponse.redirect(
+            `${origin}/login?error=oauth_restart&message=Please try signing in again`
+          );
         }
         
-        return NextResponse.redirect(`${origin}/login?error=auth_failed&message=${encodeURIComponent(exchangeError.message)}`);
+        return NextResponse.redirect(
+          `${origin}/login?error=auth_failed&message=${encodeURIComponent(exchangeError.message)}`
+        );
       }
 
       if (data.user) {
         console.log("User authenticated successfully:", data.user.email);
 
-        // Create or update profile
+        // Create/update profile - improved version
         try {
           const { data: existingProfile } = await supabase
             .from("profiles")
@@ -49,27 +60,29 @@ export async function GET(request: NextRequest) {
             .maybeSingle();
 
           if (!existingProfile) {
-            console.log("Creating new profile for user");
+            console.log("Creating profile for OAuth user");
             
+            // Better username extraction for OAuth
+            const metadata = data.user.user_metadata;
             const username = 
-              data.user.user_metadata?.preferred_username || // GitHub
-              data.user.user_metadata?.user_name || 
-              data.user.user_metadata?.name || 
-              data.user.user_metadata?.full_name || 
+              metadata?.preferred_username ||  // GitHub
+              metadata?.user_name ||          // GitHub alternative
+              metadata?.name?.replace(/\s+/g, '_') || // Google name
+              metadata?.full_name?.replace(/\s+/g, '_') ||
               data.user.email?.split("@")[0] ||
               `user_${data.user.id.slice(0, 8)}`;
 
             const { error: profileError } = await supabase.from("profiles").insert({
               id: data.user.id,
-              username: username,
+              username: username.toLowerCase().replace(/[^a-zA-Z0-9_]/g, '_'),
               bio: "",
-              avatar_url: data.user.user_metadata?.avatar_url || "",
+              avatar_url: metadata?.avatar_url || "",
               created_at: new Date().toISOString(),
             });
 
             if (profileError) {
               console.warn("Profile creation failed:", profileError);
-              // Don't fail the login just because profile creation failed
+              // Don't fail the login for profile creation issues
             } else {
               console.log("Profile created successfully");
             }
@@ -78,7 +91,7 @@ export async function GET(request: NextRequest) {
           }
         } catch (profileError) {
           console.warn("Profile operation failed:", profileError);
-          // Don't fail the login just because profile operation failed
+          // Don't fail the login for profile operations
         }
 
         // Success - redirect to destination
@@ -87,23 +100,31 @@ export async function GET(request: NextRequest) {
         
         const response = NextResponse.redirect(redirectUrl);
         
-        // Set secure headers and clear cache
+        // Set secure headers
         response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
         response.headers.set('Pragma', 'no-cache');
         response.headers.set('Expires', '0');
         
         return response;
       } else {
-        console.error("No user data received after successful exchange");
-        return NextResponse.redirect(`${origin}/login?error=no_user_data`);
+        console.error("No user data after successful exchange");
+        return NextResponse.redirect(
+          `${origin}/login?error=no_user_data&message=Authentication succeeded but no user data received`
+        );
       }
-    } catch (error) {
-      console.error("Unexpected auth error:", error);
-      return NextResponse.redirect(`${origin}/login?error=unexpected_error&message=${encodeURIComponent(error.message)}`);
+    } catch (error: any) {
+      console.error("Unexpected auth callback error:", error);
+      return NextResponse.redirect(
+        `${origin}/login?error=unexpected_error&message=${encodeURIComponent(
+          error.message || "An unexpected error occurred"
+        )}`
+      );
     }
   }
 
   // No code provided
   console.error("No authorization code provided");
-  return NextResponse.redirect(`${origin}/login?error=no_code`);
+  return NextResponse.redirect(
+    `${origin}/login?error=no_code&message=No authorization code received`
+  );
 }

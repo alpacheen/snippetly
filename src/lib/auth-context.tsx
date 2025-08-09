@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { User, Session, AuthError } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
+import { toast } from "sonner";
 
 interface AuthContextType {
   user: User | null;
@@ -96,20 +97,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .maybeSingle();
 
       if (!existingProfile) {
-        const username =
-          user.user_metadata?.username ||
-          user.user_metadata?.name ||
-          user.user_metadata?.display_name ||
-          user.email?.split("@")[0] ||
-          `user_${user.id.slice(0, 8)}`;
+        // Better username extraction for OAuth providers
+        const username = 
+          user.user_metadata?.preferred_username || // GitHub
+          user.user_metadata?.user_name ||           // GitHub alt
+          user.user_metadata?.name ||                // Google/general
+          user.user_metadata?.full_name ||           // Google alt
+          user.user_metadata?.display_name ||        // Manual signup
+          user.email?.split("@")[0] ||               // Email fallback
+          `user_${user.id.slice(0, 8)}`;            // Final fallback
 
-        await supabase.from("profiles").insert({
+        const { error } = await supabase.from("profiles").insert({
           id: user.id,
-          username,
+          username: username.replace(/[^a-zA-Z0-9_]/g, '_'), // Sanitize username
           bio: "",
           avatar_url: user.user_metadata?.avatar_url || "",
           created_at: new Date().toISOString(),
         });
+
+        if (error) {
+          console.warn("Profile creation failed:", error);
+        } else {
+          console.log("Profile created successfully for:", username);
+        }
       }
     } catch (error) {
       console.warn("Profile creation error:", error);
@@ -118,7 +128,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({ 
+      const { error } = await supabase.auth.signInWithPassword({ 
         email: email.trim().toLowerCase(), 
         password 
       });
@@ -144,7 +154,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { error: { message: "Password must be at least 6 characters" } as AuthError };
       }
   
-      const { data, error } = await supabase.auth.signUp({
+      const { error } = await supabase.auth.signUp({
         email: email.trim().toLowerCase(),
         password,
         options: {
@@ -153,13 +163,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             username: displayName.trim(),
             name: displayName.trim(),
           },
-          // Remove redirect_to for now to avoid the callback issue
-          // emailRedirectTo: `${window.location.origin}/api/auth/callback?next=/snippets`,
         },
       });
-  
-      // Log the response for debugging
-      console.log("Signup response:", { data, error });
   
       return { error };
     } catch (error) {
@@ -170,7 +175,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     try {
-      // Clear local state immediately
       setLoading(true);
       
       const { error } = await supabase.auth.signOut();
@@ -188,7 +192,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       window.location.href = '/';
     } catch (error) {
       console.error("Sign out error:", error);
-      // Still clear state on error
       setSession(null);
       setUser(null);
       setLoading(false);
@@ -197,27 +200,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signInWithProvider = async (provider: "github" | "google") => {
     try {
-      console.log(`Initiating ${provider} OAuth flow`);
+      console.log(`Starting ${provider} OAuth...`);
+      
+      // Get the current URL for redirect
+      const baseUrl = window.location.origin;
+      const redirectUrl = `${baseUrl}/api/auth/callback?next=/snippets`;
       
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
-          redirectTo: `${window.location.origin}/api/auth/callback?next=/snippets`,
-          queryParams: {
+          redirectTo: redirectUrl,
+          queryParams: provider === 'google' ? {
             access_type: 'offline',
             prompt: 'consent',
-          },
+          } : undefined,
         },
       });
   
       if (error) {
         console.error(`${provider} OAuth error:`, error);
+        toast.error(`Failed to sign in with ${provider}. Please try again.`);
         throw error;
       }
   
       console.log(`${provider} OAuth initiated successfully`);
+      // Don't show loading toast here as the redirect will happen
+      
     } catch (error) {
       console.error("Provider auth error:", error);
+      toast.error("Authentication failed. Please try again.");
       throw error;
     }
   };

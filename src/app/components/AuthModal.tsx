@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from 'react';
-import { X, Github, Mail, Loader2, Eye, EyeOff } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { X, Github, Mail, Loader2, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { toast } from 'sonner';
+import { useSearchParams } from 'next/navigation';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -12,6 +13,7 @@ interface AuthModalProps {
 
 export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const { signIn, signUp, signInWithProvider } = useAuth();
+  const searchParams = useSearchParams();
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -22,102 +24,105 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
     displayName: '',
   });
 
+  // Handle URL error params (from OAuth redirects)
+  useEffect(() => {
+    if (!isOpen) return;
+    
+    const error = searchParams.get('error');
+    const message = searchParams.get('message');
+    
+    if (error && message) {
+      console.log("Auth error from URL:", error, message);
+      
+      if (error === 'oauth_restart') {
+        toast.error("Please try signing in again");
+      } else if (error === 'auth_failed') {
+        toast.error("Authentication failed. Please try again.");
+      } else if (error === 'no_user_data') {
+        toast.error("Authentication succeeded but user data was not received. Please try again.");
+      } else {
+        toast.error(decodeURIComponent(message));
+      }
+      
+      // Clear URL params
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [isOpen, searchParams]);
+
   if (!isOpen) return null;
 
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  
-  if (!formData.email.trim() || !formData.password.trim()) {
-    toast.error('Please fill in all required fields');
-    return;
-  }
-
-  if (isSignUp && !formData.displayName.trim()) {
-    toast.error('Please enter your display name');
-    return;
-  }
-
-  setLoading(true);
-
-  try {
-    if (isSignUp) {
-      const { error } = await signUp(formData.email, formData.password, formData.displayName);
-      
-      if (error) {
-        // Better error handling
-        if (error.message.includes('User already registered')) {
-          toast.error('An account with this email already exists. Try signing in instead.');
-          setIsSignUp(false);
-        } else if (error.message.includes('Password should be at least')) {
-          toast.error('Password must be at least 6 characters long');
-        } else if (error.message.includes('Invalid email')) {
-          toast.error('Please enter a valid email address');
-        } else {
-          toast.error(error.message);
-        }
-      } else {
-        setNeedsConfirmation(true);
-        toast.success('Account created! Please check your email to confirm your account.');
-      }
-    } else {
-      const { error } = await signIn(formData.email, formData.password);
-      
-      if (error) {
-        if (error.message.includes('Email not confirmed')) {
-          setNeedsConfirmation(true);
-          toast.error('Please check your email and confirm your account first.');
-        } else if (error.message.includes('Invalid login credentials')) {
-          toast.error('Invalid email or password. Please try again.');
-        } else {
-          toast.error(error.message);
-        }
-      } else {
-        toast.success('Signed in successfully!');
-        onClose();
-      }
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!formData.email.trim() || !formData.password.trim()) {
+      toast.error('Please fill in all required fields');
+      return;
     }
-  } catch (error) {
-    toast.error('An unexpected error occurred. Please try again.');
-    console.error('Auth error:', error);
-  } finally {
-    setLoading(false);
-  }
-};
-  
 
-  const handleProviderSignIn = async (provider: 'github' | 'google') => {
+    if (isSignUp && !formData.displayName.trim()) {
+      toast.error('Please enter your display name');
+      return;
+    }
+
+    setLoading(true);
+
     try {
-      setLoading(true);
-      await signInWithProvider(provider);
+      if (isSignUp) {
+        const { error } = await signUp(formData.email, formData.password, formData.displayName);
+        
+        if (error) {
+          if (error.message.includes('User already registered')) {
+            toast.error('An account with this email already exists. Try signing in instead.');
+            setIsSignUp(false);
+          } else if (error.message.includes('Password should be at least')) {
+            toast.error('Password must be at least 6 characters long');
+          } else if (error.message.includes('Invalid email')) {
+            toast.error('Please enter a valid email address');
+          } else {
+            toast.error(error.message);
+          }
+        } else {
+          // For now, since SMTP is disabled, treat signup as successful
+          toast.success('Account created successfully! You can now sign in.');
+          setIsSignUp(false);
+          setFormData(prev => ({ ...prev, password: '' })); // Clear password
+        }
+      } else {
+        const { error } = await signIn(formData.email, formData.password);
+        
+        if (error) {
+          if (error.message.includes('Email not confirmed')) {
+            toast.error('Please check your email and confirm your account first.');
+          } else if (error.message.includes('Invalid login credentials')) {
+            toast.error('Invalid email or password. Please try again.');
+          } else {
+            toast.error(error.message);
+          }
+        } else {
+          toast.success('Signed in successfully!');
+          onClose();
+        }
+      }
     } catch (error) {
-      toast.error(`Failed to sign in with ${provider}. Please try again.`);
-      console.error('Provider auth error:', error);
+      toast.error('An unexpected error occurred. Please try again.');
+      console.error('Auth error:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleResendConfirmation = async () => {
-    if (!formData.email) {
-      toast.error('Please enter your email address');
-      return;
-    }
-
+  const handleProviderSignIn = async (provider: 'github' | 'google') => {
     try {
-      const response = await fetch('/api/auth/resend-confirmation', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: formData.email }),
-      });
-
-      if (response.ok) {
-        toast.success('Confirmation email sent! Please check your inbox.');
-      } else {
-        const data = await response.json();
-        toast.error(data.error || 'Failed to send confirmation email');
-      }
+      setLoading(true);
+      toast.loading(`Redirecting to ${provider}...`, { duration: 2000 });
+      await signInWithProvider(provider);
+      // Note: User will be redirected, so we don't need to handle success here
     } catch (error) {
-      toast.error('Failed to send confirmation email. Please try again.');
+      toast.dismiss();
+      toast.error(`Failed to sign in with ${provider}. Please try again.`);
+      console.error('Provider auth error:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -158,144 +163,131 @@ const handleSubmit = async (e: React.FormEvent) => {
           </button>
         </div>
 
-        {needsConfirmation ? (
-          <div className="text-center space-y-4">
-            <div className="text-2xl mb-4">📧</div>
-            <h3 className="text-lg font-semibold">Check your email</h3>
-            <p className="text-textSecondary text-sm">
-              We sent a confirmation link to <strong>{formData.email}</strong>
-            </p>
-            <button
-              onClick={handleResendConfirmation}
-              className="text-lightGreen hover:text-lightGreen/80 text-sm underline"
-            >
-              Resend confirmation email
-            </button>
-            <button
-              onClick={() => setNeedsConfirmation(false)}
-              className="block w-full mt-4 text-textSecondary hover:text-text text-sm"
-            >
-              Back to sign in
-            </button>
+        {/* OAuth Buttons */}
+        <div className="space-y-3 mb-6">
+          <button
+            onClick={() => handleProviderSignIn('github')}
+            disabled={loading}
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50"
+          >
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Github className="w-5 h-5" />}
+            Continue with GitHub
+          </button>
+          <button
+            onClick={() => handleProviderSignIn('google')}
+            disabled={loading}
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+          >
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-5 h-5" />}
+            Continue with Google
+          </button>
+        </div>
+
+        <div className="relative mb-6">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-textSecondary"></div>
           </div>
-        ) : (
-          <>
-            {/* OAuth Buttons */}
-            <div className="space-y-3 mb-6">
-              <button
-                onClick={() => handleProviderSignIn('github')}
+          <div className="relative flex justify-center text-sm">
+            <span className="px-2 bg-primary text-textSecondary">or</span>
+          </div>
+        </div>
+
+        {/* Email Form */}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {isSignUp && (
+            <div>
+              <label htmlFor="displayName" className="block text-sm font-medium text-text mb-1">
+                Display Name *
+              </label>
+              <input
+                id="displayName"
+                name="displayName"
+                type="text"
+                placeholder="Your display name"
+                value={formData.displayName}
+                onChange={handleInputChange}
                 disabled={loading}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50"
-              >
-                <Github className="w-5 h-5" />
-                Continue with GitHub
-              </button>
-              <button
-                onClick={() => handleProviderSignIn('google')}
+                className="w-full px-4 py-3 bg-primary border border-textSecondary rounded-lg text-text placeholder-textSecondary focus:border-lightGreen focus:outline-none disabled:opacity-50"
+                required
+              />
+            </div>
+          )}
+          
+          <div>
+            <label htmlFor="email" className="block text-sm font-medium text-text mb-1">
+              Email *
+            </label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              placeholder="your@email.com"
+              value={formData.email}
+              onChange={handleInputChange}
+              disabled={loading}
+              className="w-full px-4 py-3 bg-primary border border-textSecondary rounded-lg text-text placeholder-textSecondary focus:border-lightGreen focus:outline-none disabled:opacity-50"
+              required
+            />
+          </div>
+          
+          <div>
+            <label htmlFor="password" className="block text-sm font-medium text-text mb-1">
+              Password *
+            </label>
+            <div className="relative">
+              <input
+                id="password"
+                name="password"
+                type={showPassword ? "text" : "password"}
+                placeholder="••••••••"
+                value={formData.password}
+                onChange={handleInputChange}
                 disabled={loading}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50"
+                className="w-full px-4 py-3 pr-12 bg-primary border border-textSecondary rounded-lg text-text placeholder-textSecondary focus:border-lightGreen focus:outline-none disabled:opacity-50"
+                required
+                minLength={6}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                disabled={loading}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-textSecondary hover:text-text transition-colors disabled:opacity-50"
               >
-                <Mail className="w-5 h-5" />
-                Continue with Google
+                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
               </button>
             </div>
+          </div>
 
-            <div className="relative mb-6">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-textSecondary"></div>
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-primary text-textSecondary">or</span>
+          {/* Info about email verification being disabled */}
+          {isSignUp && (
+            <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+              <div className="text-sm text-amber-800">
+                <p className="font-medium">Note about email verification:</p>
+                <p>Email verification is currently disabled. You can sign up and sign in immediately.</p>
               </div>
             </div>
+          )}
+          
+          <button
+            type="submit"
+            disabled={loading || !formData.email.trim() || !formData.password.trim() || (isSignUp && !formData.displayName.trim())}
+            className="w-full px-4 py-3 bg-lightGreen text-primary rounded-lg font-medium hover:bg-lightGreen/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+          >
+            {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+            {isSignUp ? 'Create Account' : 'Sign In'}
+          </button>
+        </form>
 
-            {/* Email Form */}
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {isSignUp && (
-                <div>
-                  <label htmlFor="displayName" className="block text-sm font-medium text-text mb-1">
-                    Display Name *
-                  </label>
-                  <input
-                    id="displayName"
-                    name="displayName"
-                    type="text"
-                    placeholder="Your display name"
-                    value={formData.displayName}
-                    onChange={handleInputChange}
-                    disabled={loading}
-                    className="w-full px-4 py-3 bg-primary border border-textSecondary rounded-lg text-text placeholder-textSecondary focus:border-lightGreen focus:outline-none disabled:opacity-50"
-                    required
-                  />
-                </div>
-              )}
-              
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-text mb-1">
-                  Email *
-                </label>
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  placeholder="your@email.com"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  disabled={loading}
-                  className="w-full px-4 py-3 bg-primary border border-textSecondary rounded-lg text-text placeholder-textSecondary focus:border-lightGreen focus:outline-none disabled:opacity-50"
-                  required
-                />
-              </div>
-              
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium text-text mb-1">
-                  Password *
-                </label>
-                <div className="relative">
-                  <input
-                    id="password"
-                    name="password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="••••••••"
-                    value={formData.password}
-                    onChange={handleInputChange}
-                    disabled={loading}
-                    className="w-full px-4 py-3 pr-12 bg-primary border border-textSecondary rounded-lg text-text placeholder-textSecondary focus:border-lightGreen focus:outline-none disabled:opacity-50"
-                    required
-                    minLength={6}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    disabled={loading}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-textSecondary hover:text-text transition-colors disabled:opacity-50"
-                  >
-                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                  </button>
-                </div>
-              </div>
-              
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full px-4 py-3 bg-lightGreen text-primary rounded-lg font-medium hover:bg-lightGreen/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
-              >
-                {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-                {isSignUp ? 'Create Account' : 'Sign In'}
-              </button>
-            </form>
-
-            <div className="mt-6 text-center">
-              <button
-                onClick={switchMode}
-                disabled={loading}
-                className="text-lightGreen hover:text-lightGreen/80 transition-colors text-sm disabled:opacity-50"
-              >
-                {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
-              </button>
-            </div>
-          </>
-        )}
+        <div className="mt-6 text-center">
+          <button
+            onClick={switchMode}
+            disabled={loading}
+            className="text-lightGreen hover:text-lightGreen/80 transition-colors text-sm disabled:opacity-50"
+          >
+            {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
+          </button>
+        </div>
       </div>
     </div>
   );

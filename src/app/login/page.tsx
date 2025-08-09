@@ -11,14 +11,14 @@ export default function LoginPage() {
   const router = useRouter();
   const [showAuthModal, setShowAuthModal] = useState(true);
 
-  // Redirect if already logged in
+  
   useEffect(() => {
     if (!loading && user) {
       router.push("/snippets");
     }
   }, [user, loading, router]);
 
-  // Show loading state while checking auth
+  
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -27,7 +27,7 @@ export default function LoginPage() {
     );
   }
 
-  // Don't render if user is logged in (will redirect)
+  
   if (user) {
     return null;
   }

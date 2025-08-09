@@ -15,11 +15,12 @@ function useTheme() {
   const [isDark, setIsDark] = useState(true);
 
   useEffect(() => {
-    
     const stored = localStorage.getItem("theme");
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const prefersDark = window.matchMedia(
+      "(prefers-color-scheme: dark)"
+    ).matches;
     const shouldBeDark = stored ? stored === "dark" : prefersDark;
-    
+
     setIsDark(shouldBeDark);
     document.documentElement.classList.toggle("light", !shouldBeDark);
   }, []);
@@ -34,11 +35,10 @@ function useTheme() {
   return { isDark, toggleTheme };
 }
 
-
 function UserAvatar({ user }: { user: any }) {
   const [imageError, setImageError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  
+
   const getInitials = (email: string) => {
     return email?.charAt(0)?.toUpperCase() || "U";
   };
@@ -63,13 +63,13 @@ function UserAvatar({ user }: { user: any }) {
           {isLoading && (
             <div className="absolute inset-0 bg-lightGreen/20 animate-pulse" />
           )}
-          <img 
-            src={avatarUrl} 
-            alt="Profile" 
+          <img
+            src={avatarUrl}
+            alt="Profile"
             className="w-full h-full object-cover"
             onError={handleImageError}
             onLoad={handleImageLoad}
-            style={{ display: isLoading ? 'none' : 'block' }}
+            style={{ display: isLoading ? "none" : "block" }}
           />
         </>
       ) : (
@@ -78,6 +78,7 @@ function UserAvatar({ user }: { user: any }) {
     </div>
   );
 }
+
 export default function NavBar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
@@ -91,30 +92,43 @@ export default function NavBar() {
       setMobileOpen(false);
       await signOut();
     } catch (error) {
-      console.error('Logout error:', error);
+      console.error("Logout error:", error);
     }
   };
 
-  // Close menus when clicking outside
+  // Close menus when clicking outside - UPDATED FOR DROPDOWN
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Element;
-      if (!target.closest('[data-dropdown]')) {
+
+      // Close profile dropdown if clicking outside
+      if (!target.closest("[data-profile-dropdown]")) {
         setProfileMenuOpen(false);
       }
-      if (!target.closest('[data-mobile-menu]')) {
+
+      // Close mobile menu if clicking outside the navbar area
+      if (!target.closest("nav") && mobileOpen) {
         setMobileOpen(false);
       }
     };
 
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
-  }, []);
+    // Only add listener when menus are open
+    if (mobileOpen || profileMenuOpen) {
+      document.addEventListener("click", handleClickOutside);
+      return () => document.removeEventListener("click", handleClickOutside);
+    }
+  }, [mobileOpen, profileMenuOpen]);
+
+  // Remove body scroll prevention since we're not using overlay
+  // useEffect removed
 
   return (
-    <nav className="bg-primary border-b border-textSecondary text-text relative z-40">
+    <nav className="bg-primary border-b border-textSecondary text-text relative z-50">
       <div className="container mx-auto flex items-center justify-between px-4 py-3">
-        <Link href="/" className="text-2xl font-bold tracking-tight hover:text-lightGreen transition-colors">
+        <Link
+          href="/"
+          className="text-2xl font-bold tracking-tight hover:text-lightGreen transition-colors"
+        >
           Snippetly
         </Link>
 
@@ -146,7 +160,7 @@ export default function NavBar() {
           {loading ? (
             <div className="w-10 h-10 rounded-full bg-textSecondary/20 animate-pulse"></div>
           ) : user ? (
-            <div className="relative" data-dropdown="true">
+            <div className="relative" data-profile-dropdown="true">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -194,82 +208,101 @@ export default function NavBar() {
           )}
         </div>
 
-        {/* Mobile menu button */}
+        {/* Mobile menu button - FIXED */}
         <button
-          className="md:hidden text-text focus:outline-none z-50"
+          className="md:hidden text-text focus:outline-none z-50 relative"
           onClick={(e) => {
             e.stopPropagation();
             setMobileOpen(!mobileOpen);
           }}
-          data-mobile-menu="true"
+          data-mobile-button="true"
           aria-label="Toggle menu"
+          aria-expanded={mobileOpen}
         >
           {mobileOpen ? <X size={28} /> : <Menu size={28} />}
         </button>
       </div>
 
-      {/* Mobile menu */}
+      {/* Mobile menu dropdown - STAYS AT TOP */}
       {mobileOpen && (
-        <div className="md:hidden bg-primary border-t border-textSecondary px-4 pb-4 space-y-2 absolute w-full z-30" data-mobile-menu="true">
-          {navLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="block py-2 hover:text-lightGreen transition-colors"
-              onClick={() => setMobileOpen(false)}
-            >
-              {link.label}
-            </Link>
-          ))}
-
-          {/* Mobile Theme Toggle */}
-          <button
-            onClick={toggleTheme}
-            className="flex items-center gap-2 py-2 text-textSecondary hover:text-text transition-colors w-full text-left"
-          >
-            {isDark ? (
-              <Sun className="w-4 h-4 text-lightGreen" />
-            ) : (
-              <Moon className="w-4 h-4 text-darkGreen" />
-            )}
-            Switch Theme
-          </button>
-
-          {loading ? (
-            <div className="py-2">
-              <div className="h-8 bg-textSecondary/20 rounded animate-pulse"></div>
+        <div
+          className="md:hidden bg-primary border-b border-textSecondary shadow-lg relative z-40"
+          data-mobile-menu="true"
+        >
+          {/* Menu Content */}
+          <div className="px-4 py-4 space-y-3">
+            {/* Navigation Links */}
+            <div className="space-y-2">
+              {navLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="block py-2 px-3 hover:text-lightGreen hover:bg-textSecondary/10 rounded transition-colors"
+                  onClick={() => setMobileOpen(false)}
+                >
+                  {link.label}
+                </Link>
+              ))}
             </div>
-          ) : user ? (
-            <>
-              <div className="flex items-center gap-2 py-2 text-sm text-textSecondary">
-                <UserAvatar user={user} />
-                <span className="truncate">{user.email}</span>
-              </div>
-              <Link
-                href="/profile"
-                className="flex items-center gap-2 py-2 hover:text-lightGreen transition-colors"
-                onClick={() => setMobileOpen(false)}
-              >
-                <User className="w-4 h-4" />
-                Profile
-              </Link>
-              <button
-                className="flex items-center gap-2 py-2 text-red-400 hover:text-red-300 transition-colors w-full text-left"
-                onClick={handleLogout}
-              >
-                <LogOut className="w-4 h-4" />
-                Sign Out
-              </button>
-            </>
-          ) : (
-            <Link
-              href="/login"
-              className="block py-2 hover:text-lightGreen transition-colors"
-              onClick={() => setMobileOpen(false)}
+
+            {/* Divider */}
+            <div className="border-t border-textSecondary/20 my-3"></div>
+
+            {/* Theme Toggle */}
+            <button
+              onClick={() => {
+                toggleTheme();
+                setMobileOpen(false);
+              }}
+              className="flex items-center gap-3 py-2 px-3 text-textSecondary hover:text-text hover:bg-textSecondary/10 rounded transition-colors w-full text-left"
             >
-              Sign In
-            </Link>
-          )}
+              {isDark ? (
+                <Sun className="w-4 h-4 text-lightGreen" />
+              ) : (
+                <Moon className="w-4 h-4 text-darkGreen" />
+              )}
+              
+            </button>
+
+            {/* User Section */}
+            {loading ? (
+              <div className="py-2">
+                <div className="h-8 bg-textSecondary/20 rounded animate-pulse"></div>
+              </div>
+            ) : user ? (
+              <div className="space-y-2 pt-2 border-t border-textSecondary/20">
+                <div className="flex items-center gap-3 py-2 px-3 text-sm text-textSecondary bg-textSecondary/5 rounded">
+                  <UserAvatar user={user} />
+                  <span className="truncate">{user.email}</span>
+                </div>
+                <Link
+                  href="/profile"
+                  className="flex items-center gap-3 py-2 px-3 hover:text-lightGreen hover:bg-textSecondary/10 rounded transition-colors"
+                  onClick={() => setMobileOpen(false)}
+                >
+                  <User className="w-4 h-4" />
+                  Profile
+                </Link>
+                <button
+                  className="flex items-center gap-3 py-2 px-3 text-red-400 hover:text-red-300 hover:bg-red-400/10 rounded transition-colors w-full text-left"
+                  onClick={handleLogout}
+                >
+                  <LogOut className="w-4 h-4" />
+                  Sign Out
+                </button>
+              </div>
+            ) : (
+              <div className="pt-2 border-t border-textSecondary/20">
+                <Link
+                  href="/login"
+                  className="block py-2 px-3 bg-lightGreen text-primary rounded-lg text-center font-medium hover:bg-lightGreen/80 transition-colors"
+                  onClick={() => setMobileOpen(false)}
+                >
+                  Sign In
+                </Link>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </nav>
