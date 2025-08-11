@@ -32,13 +32,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let mounted = true;
 
+    // DEBUG: Log environment
+    console.log("🔍 AUTH DEBUG - Environment:");
+    console.log("Supabase URL:", process.env.NEXT_PUBLIC_SUPABASE_URL);
+    console.log("Base URL:", process.env.NEXT_PUBLIC_BASE_URL);
+    console.log(
+      "Current origin:",
+      typeof window !== "undefined" ? window.location.origin : "server"
+    );
+
     // Get initial session
     const getInitialSession = async () => {
       try {
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
+        console.log("🔍 AUTH DEBUG - Getting initial session...");
+        const {
+          data: { session },
+          error,
+        } = await supabase.auth.getSession();
+
         if (error) {
-          console.warn("Session error:", error);
+          console.error("🔍 AUTH DEBUG - Session error:", error);
+        } else {
+          console.log(
+            "🔍 AUTH DEBUG - Initial session:",
+            session ? "Found" : "None"
+          );
         }
 
         if (mounted) {
@@ -47,7 +65,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setLoading(false);
         }
       } catch (error) {
-        console.error("Auth initialization error:", error);
+        console.error("🔍 AUTH DEBUG - Auth initialization error:", error);
         if (mounted) {
           setLoading(false);
         }
@@ -60,21 +78,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth event:', event, session?.user?.email);
-      
+      console.log(
+        "🔍 AUTH DEBUG - Auth event:",
+        event,
+        session?.user?.email || "No user"
+      );
+
       if (!mounted) return;
 
       setSession(session);
       setUser(session?.user ?? null);
-      
+
       // Handle sign out - clear everything
-      if (event === 'SIGNED_OUT') {
+      if (event === "SIGNED_OUT") {
         setSession(null);
         setUser(null);
       }
 
       // Create profile for confirmed users
-      if (session?.user && (event === "SIGNED_IN" || event === "TOKEN_REFRESHED")) {
+      if (
+        session?.user &&
+        (event === "SIGNED_IN" || event === "TOKEN_REFRESHED")
+      ) {
         await createUserProfile(session.user);
       }
 
@@ -89,6 +114,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const createUserProfile = async (user: User) => {
     try {
+      console.log("🔍 AUTH DEBUG - Creating profile for:", user.email);
+
       // Check if profile exists
       const { data: existingProfile } = await supabase
         .from("profiles")
@@ -97,44 +124,61 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .maybeSingle();
 
       if (!existingProfile) {
+        console.log("🔍 AUTH DEBUG - No existing profile, creating new one");
+
         // Better username extraction for OAuth providers
-        const username = 
-          user.user_metadata?.preferred_username || // GitHub
-          user.user_metadata?.user_name ||           // GitHub alt
-          user.user_metadata?.name ||                // Google/general
-          user.user_metadata?.full_name ||           // Google alt
-          user.user_metadata?.display_name ||        // Manual signup
-          user.email?.split("@")[0] ||               // Email fallback
-          `user_${user.id.slice(0, 8)}`;            // Final fallback
+        const metadata = user.user_metadata;
+        console.log("🔍 AUTH DEBUG - User metadata:", metadata);
+
+        const username =
+          metadata?.preferred_username || // GitHub
+          metadata?.user_name || // GitHub alt
+          metadata?.name || // Google/general
+          metadata?.full_name || // Google alt
+          metadata?.display_name || // Manual signup
+          user.email?.split("@")[0] || // Email fallback
+          `user_${user.id.slice(0, 8)}`; // Final fallback
+
+        console.log("🔍 AUTH DEBUG - Generated username:", username);
 
         const { error } = await supabase.from("profiles").insert({
           id: user.id,
-          username: username.replace(/[^a-zA-Z0-9_]/g, '_'), // Sanitize username
+          username: username.replace(/[^a-zA-Z0-9_]/g, "_"), // Sanitize username
           bio: "",
-          avatar_url: user.user_metadata?.avatar_url || "",
+          avatar_url: metadata?.avatar_url || "",
           created_at: new Date().toISOString(),
         });
 
         if (error) {
-          console.warn("Profile creation failed:", error);
+          console.error("🔍 AUTH DEBUG - Profile creation failed:", error);
         } else {
-          console.log("Profile created successfully for:", username);
+          console.log("🔍 AUTH DEBUG - Profile created successfully");
         }
+      } else {
+        console.log("🔍 AUTH DEBUG - Profile already exists");
       }
     } catch (error) {
-      console.warn("Profile creation error:", error);
+      console.error("🔍 AUTH DEBUG - Profile creation error:", error);
     }
   };
 
   const signIn = async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({ 
-        email: email.trim().toLowerCase(), 
-        password 
+      console.log("🔍 AUTH DEBUG - Email sign in attempt");
+      const { error } = await supabase.auth.signInWithPassword({
+        email: email.trim().toLowerCase(),
+        password,
       });
-      
+
+      if (error) {
+        console.error("🔍 AUTH DEBUG - Email sign in error:", error);
+      } else {
+        console.log("🔍 AUTH DEBUG - Email sign in successful");
+      }
+
       return { error };
     } catch (error) {
+      console.error("🔍 AUTH DEBUG - Email sign in exception:", error);
       return { error: error as AuthError };
     }
   };
@@ -145,15 +189,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     displayName: string
   ) => {
     try {
+      console.log("🔍 AUTH DEBUG - Email sign up attempt");
+
       // Validate inputs first
       if (!email || !password || !displayName) {
         return { error: { message: "All fields are required" } as AuthError };
       }
-  
+
       if (password.length < 6) {
-        return { error: { message: "Password must be at least 6 characters" } as AuthError };
+        return {
+          error: {
+            message: "Password must be at least 6 characters",
+          } as AuthError,
+        };
       }
-  
+
       const { error } = await supabase.auth.signUp({
         email: email.trim().toLowerCase(),
         password,
@@ -165,33 +215,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           },
         },
       });
-  
+
+      if (error) {
+        console.error("🔍 AUTH DEBUG - Email sign up error:", error);
+      } else {
+        console.log("🔍 AUTH DEBUG - Email sign up successful");
+      }
+
       return { error };
     } catch (error) {
-      console.error("Signup error:", error);
+      console.error("🔍 AUTH DEBUG - Email sign up exception:", error);
       return { error: error as AuthError };
     }
   };
 
   const signOut = async () => {
     try {
+      console.log("🔍 AUTH DEBUG - Sign out attempt");
       setLoading(true);
-      
+
       const { error } = await supabase.auth.signOut();
-      
+
       if (error) {
-        console.error("Sign out error:", error);
+        console.error("🔍 AUTH DEBUG - Sign out error:", error);
+      } else {
+        console.log("🔍 AUTH DEBUG - Sign out successful");
       }
-      
+
       // Force clear state
       setSession(null);
       setUser(null);
       setLoading(false);
-      
+
       // Redirect to home
-      window.location.href = '/';
+      window.location.href = "/";
     } catch (error) {
-      console.error("Sign out error:", error);
+      console.error("🔍 AUTH DEBUG - Sign out exception:", error);
       setSession(null);
       setUser(null);
       setLoading(false);
@@ -200,34 +259,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signInWithProvider = async (provider: "github" | "google") => {
     try {
-      console.log(`Starting ${provider} OAuth...`);
-      
+      console.log(`🔍 AUTH DEBUG - Starting ${provider} OAuth...`);
+
       // Get the current URL for redirect
-      const baseUrl = window.location.origin;
+      const baseUrl =
+        typeof window !== "undefined" ? window.location.origin : "";
       const redirectUrl = `${baseUrl}/api/auth/callback?next=/snippets`;
-      
+
+      console.log(`🔍 AUTH DEBUG - Base URL: ${baseUrl}`);
+      console.log(`🔍 AUTH DEBUG - Redirect URL: ${redirectUrl}`);
+
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
           redirectTo: redirectUrl,
-          queryParams: provider === 'google' ? {
-            access_type: 'offline',
-            prompt: 'consent',
-          } : undefined,
+          queryParams:
+            provider === "google"
+              ? {
+                  access_type: "offline",
+                  prompt: "consent",
+                }
+              : undefined,
         },
       });
-  
+
+      console.log(`🔍 AUTH DEBUG - OAuth response:`, { data, error });
+
       if (error) {
-        console.error(`${provider} OAuth error:`, error);
+        console.error(`🔍 AUTH DEBUG - ${provider} OAuth error:`, error);
         toast.error(`Failed to sign in with ${provider}. Please try again.`);
         throw error;
       }
-  
-      console.log(`${provider} OAuth initiated successfully`);
-      // Don't show loading toast here as the redirect will happen
-      
+
+      console.log(`🔍 AUTH DEBUG - ${provider} OAuth initiated successfully`);
     } catch (error) {
-      console.error("Provider auth error:", error);
+      console.error("🔍 AUTH DEBUG - Provider auth exception:", error);
       toast.error("Authentication failed. Please try again.");
       throw error;
     }
