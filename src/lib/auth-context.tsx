@@ -41,7 +41,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       typeof window !== "undefined" ? window.location.origin : "server"
     );
 
-    // Get initial session
     const getInitialSession = async () => {
       try {
         console.log("🔍 AUTH DEBUG - Getting initial session...");
@@ -126,7 +125,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!existingProfile) {
         console.log("🔍 AUTH DEBUG - No existing profile, creating new one");
 
-        // Better username extraction for OAuth providers
         const metadata = user.user_metadata;
         console.log("🔍 AUTH DEBUG - User metadata:", metadata);
 
@@ -242,12 +240,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log("🔍 AUTH DEBUG - Sign out successful");
       }
 
-      // Force clear state
       setSession(null);
       setUser(null);
       setLoading(false);
 
-      // Redirect to home
       window.location.href = "/";
     } catch (error) {
       console.error("🔍 AUTH DEBUG - Sign out exception:", error);
@@ -259,46 +255,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signInWithProvider = async (provider: "github" | "google") => {
     try {
-      console.log(`🔍 AUTH DEBUG - Starting ${provider} OAuth...`);
+      console.log(`Starting ${provider} OAuth...`);
 
-      // Get the current URL for redirect
       const baseUrl =
-        typeof window !== "undefined" ? window.location.origin : "";
-      const redirectUrl = `${baseUrl}/api/auth/callback?next=/snippets`;
+        process.env.NEXT_PUBLIC_BASE_URL ||
+        (typeof window !== "undefined" ? window.location.origin : "");
 
-      console.log(`🔍 AUTH DEBUG - Base URL: ${baseUrl}`);
-      console.log(`🔍 AUTH DEBUG - Redirect URL: ${redirectUrl}`);
+      const redirectUrl = `${baseUrl}/api/auth/callback`;
+
+      console.log(`OAuth redirect URL: ${redirectUrl}`);
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
           redirectTo: redirectUrl,
-          queryParams:
-            provider === "google"
-              ? {
-                  access_type: "offline",
-                  prompt: "consent",
-                }
-              : undefined,
+          skipBrowserRedirect: false,
         },
       });
 
-      console.log(`🔍 AUTH DEBUG - OAuth response:`, { data, error });
-
       if (error) {
-        console.error(`🔍 AUTH DEBUG - ${provider} OAuth error:`, error);
+        console.error(`${provider} OAuth error:`, error);
         toast.error(`Failed to sign in with ${provider}. Please try again.`);
         throw error;
       }
 
-      console.log(`🔍 AUTH DEBUG - ${provider} OAuth initiated successfully`);
+      console.log(`${provider} OAuth initiated successfully`);
     } catch (error) {
-      console.error("🔍 AUTH DEBUG - Provider auth exception:", error);
+      console.error("Provider auth exception:", error);
       toast.error("Authentication failed. Please try again.");
       throw error;
     }
   };
-
   const value = {
     user,
     session,

@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useState, useEffect, useCallback } from "react";
-import { Menu, X, Sun, Moon, User, LogOut } from "lucide-react";
+import { Menu, X, Sun, Moon, User, LogOut, Settings } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "next/navigation";
 
@@ -96,31 +96,24 @@ export default function NavBar() {
     }
   };
 
-  // Close menus when clicking outside - UPDATED FOR DROPDOWN
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Element;
 
-      // Close profile dropdown if clicking outside
       if (!target.closest("[data-profile-dropdown]")) {
         setProfileMenuOpen(false);
       }
 
-      // Close mobile menu if clicking outside the navbar area
       if (!target.closest("nav") && mobileOpen) {
         setMobileOpen(false);
       }
     };
 
-    // Only add listener when menus are open
     if (mobileOpen || profileMenuOpen) {
       document.addEventListener("click", handleClickOutside);
       return () => document.removeEventListener("click", handleClickOutside);
     }
   }, [mobileOpen, profileMenuOpen]);
-
-  // Remove body scroll prevention since we're not using overlay
-  // useEffect removed
 
   return (
     <nav className="bg-primary border-b border-textSecondary text-text relative z-50">
@@ -186,6 +179,14 @@ export default function NavBar() {
                     >
                       <User className="w-4 h-4" />
                       Profile
+                    </Link>
+                    <Link
+                      href="/settings"
+                      onClick={() => setProfileMenuOpen(false)}
+                      className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-textSecondary/10 transition-colors"
+                    >
+                      <Settings className="w-4 h-4" />
+                      Settings
                     </Link>
                     <button
                       onClick={handleLogout}
@@ -261,7 +262,6 @@ export default function NavBar() {
               ) : (
                 <Moon className="w-4 h-4 text-darkGreen" />
               )}
-              
             </button>
 
             {/* User Section */}
