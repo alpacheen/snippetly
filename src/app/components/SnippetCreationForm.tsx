@@ -1,121 +1,104 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
-import { Eye, Code, Save, X, Plus } from "lucide-react";
-import {
-  withErrorHandling,
-  validateForm,
-  showValidationErrors,
-} from "@/app/components/ErrorUtils";
-import type { CreateSnippetForm } from "@/types";
+import { Eye, Code, Save, X, Plus, Loader2 } from "lucide-react";
 import { SUPPORTED_LANGUAGES, COMMON_TAGS } from "@/types";
+import dynamic from "next/dynamic";
+
+// Lazy load syntax highlighter for preview
+const SyntaxHighlighter = dynamic(
+  () => import("react-syntax-highlighter").then((mod) => mod.Prism),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="p-4 bg-gray-800 rounded flex items-center justify-center">
+        <Loader2 className="w-6 h-6 animate-spin text-lightGreen" />
+        <span className="ml-2 text-gray-300">Loading preview...</span>
+      </div>
+    ),
+  }
+);
+
+interface FormData {
+  title: string;
+  description: string;
+  code: string;
+  language: string;
+  tags: string[];
+}
 
 interface SnippetCreationFormProps {
   userId: string;
 }
 
-const validationRules = {
-  title: {
-    required: true,
-    minLength: 1,
-    maxLength: 200,
-    message: "Title must be between 1-200 characters",
-  },
-  description: {
-    maxLength: 1000,
-    message: "Description must be less than 1000 characters",
-  },
-  code: {
-    required: true,
-    minLength: 1,
-    message: "Code is required",
-  },
-  language: {
-    required: true,
-    message: "Please select a language",
-  },
+const INITIAL_FORM_DATA: FormData = {
+  title: "",
+  description: "",
+  code: "",
+  language: "JavaScript",
+  tags: [],
 };
 
-export default function SnippetCreationForm({
-  userId,
-}: SnippetCreationFormProps) {
+export default function SnippetCreationForm({ userId }: SnippetCreationFormProps) {
   const router = useRouter();
+  const [formData, setFormData] = useState<FormData>(INITIAL_FORM_DATA);
+  const [tagInput, setTagInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [preview, setPreview] = useState(false);
-  const [tagInput, setTagInput] = useState("");
 
-  const [formData, setFormData] = useState<CreateSnippetForm>({
-    title: "",
-    description: "",
-    code: "",
-    language: "JavaScript",
-    tags: [],
-  });
+  // Client-side validation
+  const validateForm = useCallback((): string | null => {
+    if (!formData.title.trim()) return "Title is required";
+    if (formData.title.length > 200) return "Title must be less than 200 characters";
+    if (!formData.code.trim()) return "Code is required";
+    if (formData.description.length > 1000) return "Description must be less than 1000 characters";
+    if (formData.tags.length > 10) return "Maximum 10 tags allowed";
+    return null;
+  }, [formData]);
 
-  const handleInputChange = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >
+  const handleInputChange = useCallback((
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
+    setFormData(prev => ({ ...prev, [name]: value }));
+  }, []);
 
-  const handleAddTag = (tag: string) => {
+  const handleAddTag = useCallback((tag: string) => {
     const cleanTag = tag.trim().toLowerCase();
-    if (
-      cleanTag &&
-      !formData.tags.includes(cleanTag) &&
-      formData.tags.length < 10
-    ) {
-      setFormData((prev) => ({
-        ...prev,
-        tags: [...prev.tags, cleanTag],
-      }));
+    if (cleanTag && !formData.tags.includes(cleanTag) && formData.tags.length < 10) {
+      setFormData(prev => ({ ...prev, tags: [...prev.tags, cleanTag] }));
     }
-  };
+  }, [formData.tags]);
 
-  const handleRemoveTag = (tagToRemove: string) => {
-    setFormData((prev) => ({
+  const handleRemoveTag = useCallback((tagToRemove: string) => {
+    setFormData(prev => ({
       ...prev,
-      tags: prev.tags.filter((tag) => tag !== tagToRemove),
+      tags: prev.tags.filter(tag => tag !== tagToRemove)
     }));
-  };
+  }, []);
 
-  const handleTagInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleTagInputKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && tagInput.trim()) {
       e.preventDefault();
       handleAddTag(tagInput.trim());
       setTagInput("");
     } else if (e.key === "Backspace" && !tagInput && formData.tags.length > 0) {
-      // Remove last tag if backspace is pressed on empty input
       handleRemoveTag(formData.tags[formData.tags.length - 1]);
     }
-  };
+  }, [tagInput, formData.tags, handleAddTag, handleRemoveTag]);
 
-  const handleSubmit = withErrorHandling(async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (loading) return; // Prevent double submission
 
-    // Validate form - convert to Record<string, unknown> for validation
-    const formDataForValidation: Record<string, unknown> = {
-      title: formData.title,
-      description: formData.description,
-      code: formData.code,
-      language: formData.language,
-      tags: formData.tags,
-    };
-
-    const errors = validateForm(formDataForValidation, validationRules);
-    if (errors.length > 0) {
-      showValidationErrors(errors);
+    // Client-side validation
+    const validationError = validateForm();
+    if (validationError) {
+      toast.error(validationError);
       return;
     }
 
@@ -126,55 +109,53 @@ export default function SnippetCreationForm({
 
     setLoading(true);
 
-    const insertData = {
-      title: formData.title.trim(),
-      description: formData.description.trim(),
-      code: formData.code.trim(),
-      language: formData.language,
-      tags: formData.tags,
-      user_id: userId,
-    };
+    try {
+      // Single optimized insert
+      const { data, error } = await supabase
+        .from("snippets")
+        .insert({
+          title: formData.title.trim(),
+          description: formData.description.trim(),
+          code: formData.code.trim(),
+          language: formData.language,
+          tags: formData.tags,
+          user_id: userId,
+        })
+        .select("id")
+        .single();
 
-    const { data, error } = await supabase
-      .from("snippets")
-      .insert(insertData)
-      .select()
-      .single();
+      if (error) {
+        throw new Error(error.message);
+      }
 
-    if (error) {
-      throw new Error(`Failed to create snippet: ${error.message}`);
+      toast.success("Snippet created successfully!");
+      
+      // Reset form
+      setFormData(INITIAL_FORM_DATA);
+      setTagInput("");
+      setPreview(false);
+
+      // Navigate to the new snippet
+      if (data?.id) {
+        router.push(`/snippets/${data.id}`);
+      } else {
+        router.push("/snippets");
+      }
+    } catch (error: any) {
+      console.error("Create snippet error:", error);
+      toast.error(error.message || "Failed to create snippet");
+    } finally {
+      setLoading(false);
     }
+  };
 
-    toast.success("Snippet created successfully!");
-
-    // Reset form
-    setFormData({
-      title: "",
-      description: "",
-      code: "",
-      language: "JavaScript",
-      tags: [],
-    });
-    setTagInput("");
-
-    if (data?.id) {
-      router.push(`/snippets/${data.id}`);
-    } else {
-      router.push("/snippets");
-    }
-  }, "Create snippet");
-
-  const resetForm = () => {
-    setFormData({
-      title: "",
-      description: "",
-      code: "",
-      language: "JavaScript",
-      tags: [],
-    });
+  const resetForm = useCallback(() => {
+    setFormData(INITIAL_FORM_DATA);
     setTagInput("");
     setPreview(false);
-  };
+  }, []);
+
+  const isFormValid = formData.title.trim() && formData.code.trim();
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -188,11 +169,7 @@ export default function SnippetCreationForm({
             disabled={loading}
             className="flex items-center gap-2 px-4 py-2 bg-textSecondary text-primary rounded-lg hover:bg-textSecondary/80 transition-colors disabled:opacity-50"
           >
-            {preview ? (
-              <Code className="w-4 h-4" />
-            ) : (
-              <Eye className="w-4 h-4" />
-            )}
+            {preview ? <Code className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             {preview ? "Edit" : "Preview"}
           </button>
         </div>
@@ -214,7 +191,7 @@ export default function SnippetCreationForm({
                   <Code className="w-4 h-4" />
                   {formData.language}
                 </span>
-                <span>by {userId}</span>
+                <span>by you</span>
               </div>
             </header>
 
@@ -222,12 +199,16 @@ export default function SnippetCreationForm({
               <div className="mb-6">
                 <SyntaxHighlighter
                   language={formData.language.toLowerCase()}
-                  style={vscDarkPlus}
+                  style={{
+                    'pre[class*="language-"]': { margin: 0, borderRadius: '0.5rem' },
+                    'code[class*="language-"]': { fontSize: '14px' },
+                  }}
                   showLineNumbers
                   wrapLines
                   customStyle={{
                     margin: 0,
-                    borderRadius: "0.5rem",
+                    borderRadius: '0.5rem',
+                    backgroundColor: '#1f2937',
                   }}
                 >
                   {formData.code}
@@ -244,7 +225,7 @@ export default function SnippetCreationForm({
                       key={tag}
                       className="px-2 py-1 bg-darkGreen text-text rounded text-sm"
                     >
-                      {tag}
+                      #{tag}
                     </span>
                   ))}
                 </div>
@@ -255,7 +236,7 @@ export default function SnippetCreationForm({
       ) : (
         /* Edit Mode */
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Title and Language Row */}
+          {/* Title and Language */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label htmlFor="title" className="block text-sm font-medium mb-2">
@@ -279,10 +260,7 @@ export default function SnippetCreationForm({
             </div>
 
             <div>
-              <label
-                htmlFor="language"
-                className="block text-sm font-medium mb-2"
-              >
+              <label htmlFor="language" className="block text-sm font-medium mb-2">
                 Language *
               </label>
               <select
@@ -305,10 +283,7 @@ export default function SnippetCreationForm({
 
           {/* Description */}
           <div>
-            <label
-              htmlFor="description"
-              className="block text-sm font-medium mb-2"
-            >
+            <label htmlFor="description" className="block text-sm font-medium mb-2">
               Description
             </label>
             <textarea
@@ -343,9 +318,6 @@ export default function SnippetCreationForm({
               required
               disabled={loading}
             />
-            <p className="text-xs text-textSecondary mt-1">
-              Use proper indentation and formatting for better readability
-            </p>
           </div>
 
           {/* Tags */}
@@ -354,7 +326,6 @@ export default function SnippetCreationForm({
               Tags {formData.tags.length > 0 && `(${formData.tags.length}/10)`}
             </label>
 
-            {/* Tag Input */}
             <div className="space-y-3">
               <div className="flex flex-wrap gap-2 p-3 border border-textSecondary rounded-lg bg-primary min-h-[2.5rem] items-center">
                 {formData.tags.map((tag) => (
@@ -362,7 +333,7 @@ export default function SnippetCreationForm({
                     key={tag}
                     className="flex items-center gap-1 px-2 py-1 bg-darkGreen text-text rounded text-sm"
                   >
-                    {tag}
+                    #{tag}
                     <button
                       type="button"
                       onClick={() => handleRemoveTag(tag)}
@@ -418,13 +389,20 @@ export default function SnippetCreationForm({
           <div className="flex gap-4 pt-4 border-t border-textSecondary">
             <button
               type="submit"
-              disabled={
-                loading || !formData.title.trim() || !formData.code.trim()
-              }
+              disabled={loading || !isFormValid}
               className="flex items-center gap-2 px-6 py-3 bg-lightGreen text-primary rounded font-semibold hover:bg-lightGreen/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              <Save className="w-4 h-4" />
-              {loading ? "Creating..." : "Create Snippet"}
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4" />
+                  Create Snippet
+                </>
+              )}
             </button>
 
             <button

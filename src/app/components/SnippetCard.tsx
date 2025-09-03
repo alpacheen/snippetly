@@ -1,41 +1,29 @@
+import { memo, useMemo } from "react";
 import Link from "next/link";
 import { Code, Calendar, Tag, Star } from "lucide-react";
 import { Avatar } from "@/app/components/SafeImage";
 import type { Snippet } from "@/types";
 
-interface SnippetCardProps {
+interface OptimizedSnippetCardProps {
   snippet: Snippet;
   showAuthor?: boolean;
   showStats?: boolean;
-  compact?: boolean;
   className?: string;
 }
 
-export default function SnippetCard({
+export const OptimizedSnippetCard = memo(function SnippetCard({
   snippet,
   showAuthor = true,
   showStats = true,
-  compact = false,
   className = "",
-}: SnippetCardProps) {
-  const {
-    id,
-    title,
-    description,
-    language,
-    tags,
-    created_at,
-    rating,
-    ratings_count,
-    author,
-  } = snippet;
+}: OptimizedSnippetCardProps) {
+  const { id, title, description, language, tags, created_at, rating, ratings_count, author } = snippet;
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
+  // Memoized calculations for performance
+  const formattedDate = useMemo(() => {
+    const date = new Date(created_at);
     const now = new Date();
-    const diffInHours = Math.floor(
-      (now.getTime() - date.getTime()) / (1000 * 60 * 60)
-    );
+    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
 
     if (diffInHours < 24) {
       return diffInHours < 1 ? "Just now" : `${diffInHours}h ago`;
@@ -49,46 +37,41 @@ export default function SnippetCard({
         year: date.getFullYear() !== now.getFullYear() ? "numeric" : undefined,
       });
     }
-  };
+  }, [created_at]);
 
-  const truncateText = (text: string, maxLength: number) => {
-    if (text.length <= maxLength) return text;
-    return text.slice(0, maxLength).trim() + "...";
-  };
+  const truncatedDescription = useMemo(() => {
+    if (!description) return "";
+    return description.length <= 120 
+      ? description 
+      : description.slice(0, 120).trim() + "...";
+  }, [description]);
+
+  const displayTags = useMemo(() => 
+    tags?.slice(0, 3) || []
+  , [tags]);
+
+  const hasMoreTags = tags && tags.length > 3;
 
   return (
     <Link href={`/snippets/${id}`} className={`group block ${className}`}>
-      <article
-        className={`
-        border border-textSecondary rounded-lg shadow-sm bg-primary 
-        hover:shadow-md hover:border-lightGreen transition-all duration-200 
-        h-full flex flex-col overflow-hidden
-        ${compact ? "p-3" : "p-4"}
-      `}
-      >
+      <article className="border border-textSecondary rounded-lg shadow-sm bg-primary hover:shadow-md hover:border-lightGreen transition-all duration-200 h-full flex flex-col overflow-hidden p-4">
         {/* Header */}
         <header className="flex-1 mb-3">
-          <h2
-            className={`
-            font-semibold text-text group-hover:text-text 
-            transition-colors line-clamp-2 mb-2
-            ${compact ? "text-base" : "text-lg"}
-          `}
-          >
+          <h2 className="font-semibold text-text group-hover:text-text transition-colors line-clamp-2 mb-2 text-lg">
             {title}
           </h2>
 
-          {description && !compact && (
+          {truncatedDescription && (
             <p className="text-sm text-textSecondary line-clamp-2 mb-3">
-              {truncateText(description, 120)}
+              {truncatedDescription}
             </p>
           )}
         </header>
 
         {/* Tags */}
-        {tags && tags.length > 0 && (
+        {displayTags.length > 0 && (
           <div className="flex flex-wrap gap-1 mb-3">
-            {tags.slice(0, compact ? 2 : 3).map((tag) => (
+            {displayTags.map((tag) => (
               <span
                 key={tag}
                 className="inline-flex items-center gap-1 px-2 py-1 bg-darkGreen text-text rounded text-xs"
@@ -97,9 +80,9 @@ export default function SnippetCard({
                 {tag}
               </span>
             ))}
-            {tags.length > (compact ? 2 : 3) && (
+            {hasMoreTags && (
               <span className="px-2 py-1 bg-textSecondary/20 text-textSecondary rounded text-xs">
-                +{tags.length - (compact ? 2 : 3)} more
+                +{tags!.length - 3} more
               </span>
             )}
           </div>
@@ -128,7 +111,7 @@ export default function SnippetCard({
 
                 <div className="flex items-center gap-1">
                   <Calendar className="w-4 h-4" />
-                  <span>{formatDate(created_at)}</span>
+                  <span>{formattedDate}</span>
                 </div>
               </div>
             )}
@@ -148,28 +131,11 @@ export default function SnippetCard({
           )}
 
           {/* Hover indicator */}
-          <div className="opacity-0 group-hover:opacity-100 transition-opacity text-amber-300 text-sm pt-1">
+          <div className="opacity-0 group-hover:opacity-100 transition-opacity text-lightGreen text-sm pt-1">
             View snippet →
           </div>
         </footer>
       </article>
     </Link>
   );
-}
-
-// Compact version for lists
-export function CompactSnippetCard(props: Omit<SnippetCardProps, "compact">) {
-  return (
-    <SnippetCard {...props} compact showAuthor={false} showStats={false} />
-  );
-}
-
-// Featured version with enhanced styling
-export function FeaturedSnippetCard(props: SnippetCardProps) {
-  return (
-    <SnippetCard
-      {...props}
-      className={`ring-2 ring-lightGreen/20 ${props.className || ""}`}
-    />
-  );
-}
+});
