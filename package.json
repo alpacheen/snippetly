@@ -24,11 +24,12 @@
     "clsx": "^2.1.1",
     "critters": "^0.0.23",
     "lucide-react": "^0.454.0",
-    "next": "15.1.0",
+    "next": "^16.0.8",
     "next-sitemap": "^4.2.3",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "react-syntax-highlighter": "^15.6.1",
+    "react": "^19.2.1",
+    "react-dom": "^19.2.1",
+    "react-server-dom-webpack": "^19.2.1",
+    "react-syntax-highlighter": "^16.1.0",
     "sonner": "^1.7.1"
   },
   "devDependencies": {
